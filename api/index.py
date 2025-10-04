@@ -9,21 +9,16 @@ try:
     
     # Vercel expects the handler to be named 'handler'
     def handler(request):
-        try:
-            return app(request.environ, lambda *args: None)
-        except Exception as e:
-            print(f"Handler error: {e}")
-            return {
-                'statusCode': 500,
-                'headers': {'Content-Type': 'application/json'},
-                'body': f'{{"error": "Internal server error: {str(e)}"}}'
-            }
+        return app(request.environ, lambda *args: None)
     
     # WSGI application for compatibility
     application = app
     
 except Exception as e:
     print(f"Import error: {e}")
+    import traceback
+    traceback.print_exc()
+    
     def handler(request):
         return {
             'statusCode': 500,

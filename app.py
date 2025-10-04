@@ -1291,3 +1291,14 @@ try:
 except Exception as e:
     print(f"Initial database setup failed: {e}")
     # Continue anyway - tables will be created on first request
+
+# Add a simple test route for debugging
+@app.route('/api/test')
+def api_test():
+    return jsonify({
+        'status': 'working',
+        'environment': {
+            'SECRET_KEY': 'configured' if app.config.get('SECRET_KEY') != 'your-secret-key-here' else 'missing',
+            'DATABASE_URL': 'configured' if app.config.get('SQLALCHEMY_DATABASE_URI') != 'sqlite:///yarn_system.db' else 'missing'
+        }
+    })
