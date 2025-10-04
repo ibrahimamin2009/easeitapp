@@ -8,9 +8,18 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///yarn_system.db')
+
+# Get configuration from environment variables
+SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///yarn_system.db')
+
+app.config['SECRET_KEY'] = SECRET_KEY
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Print configuration for debugging (remove in production)
+print(f"SECRET_KEY configured: {'Yes' if SECRET_KEY != 'your-secret-key-here' else 'No'}")
+print(f"DATABASE_URL configured: {'Yes' if DATABASE_URL != 'sqlite:///yarn_system.db' else 'No'}")
 
 db = SQLAlchemy(app)
 
