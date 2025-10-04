@@ -20,6 +20,10 @@
       "dest": "/api/test.py"
     },
     {
+      "src": "/simple",
+      "dest": "/api/simple.py"
+    },
+    {
       "src": "/(.*)",
       "dest": "/api/index.py"
     }
