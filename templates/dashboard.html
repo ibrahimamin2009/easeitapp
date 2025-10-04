@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Order Management System{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1><i class="fas fa-tachometer-alt"></i> Order Dashboard</h1>
+    <div class="dashboard-actions">
+        {% if user.role in ['user', 'admin'] %}
+        <button class="btn btn-primary" onclick="openCreateOrderModal()">
+            <i class="fas fa-plus"></i>
+            Create Order
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Search and Filter Bar -->
+<div class="search-filter-bar">
+    <form method="GET" action="{{ url_for('dashboard') }}" class="search-form">
+        <div class="search-group">
+            <input type="text" name="search" placeholder="Search orders..." value="{{ search_query }}" class="search-input">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+        
+        <div class="filter-group">
+            <select name="status" class="filter-select">
+                <option value="">All Statuses</option>
+                {% for status in ORDER_STATUSES.keys() %}
+                <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>
+                    {{ status }}
+                </option>
+                {% endfor %}
+            </select>
+            
+            <select name="order_type" class="filter-select">
+                <option value="">All Types</option>
+                <option value="Local" {% if order_type_filter == 'Local' %}selected{% endif %}>Local</option>
+                <option value="Export" {% if order_type_filter == 'Export' %}selected{% endif %}>Export</option>
+            </select>
+            
+            {% if user.role == 'admin' %}
+            <select name="agent" class="filter-select">
+                <option value="">All Agents</option>
+                {% for agent in agents %}
+                <option value="{{ agent.id }}" {% if agent_filter == agent.id|string %}selected{% endif %}>
+                    {{ agent.username }}
+                </option>
+                {% endfor %}
+            </select>
+            {% endif %}
+            
+            <button type="submit" class="btn btn-secondary">
+                <i class="fas fa-filter"></i>
+                Filter
+            </button>
+            
+            {% if search_query or status_filter or agent_filter or order_type_filter %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline">
+                <i class="fas fa-times"></i>
+                Clear
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<div class="board-container">
+    <div class="lists-container">
+        {% for status in ORDER_STATUSES.keys() %}
+        <div class="list" data-status="{{ status }}">
+            <div class="list-header">
+                <h3>{{ status }}</h3>
+                <span class="card-count">{{ orders_by_status[status]|length }}</span>
+            </div>
+            
+            <div class="cards-container" data-status="{{ status }}">
+                {% for order in orders_by_status[status] %}
+                <div class="card" data-order-id="{{ order.id }}" {% if user.role != 'agent' %}draggable="true"{% endif %}>
+                    <div class="card-header">
+                        <h4>{{ order.order_id }}</h4>
+                        {% if user.role == 'admin' %}
+                        <div class="card-actions">
+                            <button class="btn-icon" onclick="openAssignModal({{ order.id }})" title="Assign Agent">
+                                <i class="fas fa-user-plus"></i>
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="card-content">
+                        <div class="order-info">
+                            {% if user.role != 'agent' %}
+                            <div class="info-row">
+                                <span class="label">Customer:</span>
+                                <span class="value">{{ order.customer_name }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="info-row">
+                                <span class="label">Yarn:</span>
+                                <span class="value">{{ order.yarn_type }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Quantity:</span>
+                                <span class="value">{{ order.quantity_kg }} kg</span>
+                            </div>
+                            {% if user.role != 'agent' %}
+                            <div class="info-row">
+                                <span class="label">Amount:</span>
+                                <span class="value">${{ "%.2f"|format(order.amount_usd) }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Type:</span>
+                                <span class="value order-type-{{ order.order_type.lower() }}">{{ order.order_type }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="info-row">
+                                <span class="label">Startup:</span>
+                                <span class="value">{{ order.startup_date.strftime('%m/%d/%Y') }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-footer">
+                        <div class="card-meta">
+                            <span class="card-creator">
+                                <i class="fas fa-user"></i>
+                                {{ order.creator.username }}
+                            </span>
+                            {% if order.agent %}
+                            <span class="card-assignee">
+                                <i class="fas fa-user-check"></i>
+                                {% if user.role == 'admin' %}
+                                    {{ order.agent.username }}
+                                    {% if order.assigned_agents|length > 1 %}
+                                    <span class="additional-agents">+{{ order.assigned_agents|length - 1 }} more</span>
+                                    {% endif %}
+                                {% else %}
+                                    Assigned
+                                {% endif %}
+                            </span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="card-actions">
+                            {% if user.role == 'admin' %}
+                            <a href="{{ url_for('edit_order', order_id=order.id) }}" class="btn-icon" title="Edit Order">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{{ url_for('chat', order_id=order.id) }}" class="btn-icon" title="Chat">
+                                <i class="fas fa-comments"></i>
+                            </a>
+                            {% if order.status == 'Received Contract' %}
+                            <a href="{{ url_for('confirm_order', order_id=order.id) }}" class="btn-icon" title="Confirm Order">
+                                <i class="fas fa-check-circle"></i>
+                            </a>
+                            {% endif %}
+                            {% elif user.role == 'agent' and (order.assigned_agent == user.id or order.id in agent_assigned_order_ids) %}
+                            <a href="{{ url_for('edit_order', order_id=order.id) }}" class="btn-icon" title="Edit Order">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button class="btn-icon" onclick="openChat({{ order.id }})" title="Chat">
+                                <i class="fas fa-comments"></i>
+                            </button>
+                            {% elif user.role == 'user' and order.created_by == user.id %}
+                            <a href="{{ url_for('edit_order', order_id=order.id) }}" class="btn-icon" title="Edit Order">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button class="btn-icon" onclick="openChat({{ order.id }})" title="Chat">
+                                <i class="fas fa-comments"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Create Order Modal -->
+<div id="createOrderModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-plus"></i> Create New Order</h2>
+            <span class="close" onclick="closeCreateOrderModal()">&times;</span>
+        </div>
+        <form id="createOrderForm">
+            <div class="form-group">
+                <label for="customerName">Customer Name</label>
+                <input type="text" id="customerName" name="customer_name" required>
+            </div>
+            <div class="form-group">
+                <label for="yarnType">Yarn Type</label>
+                <input type="text" id="yarnType" name="yarn_type" required>
+            </div>
+            <div class="form-group">
+                <label for="quantityKg">Quantity (kg)</label>
+                <input type="number" id="quantityKg" name="quantity_kg" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="startupDate">Startup Date</label>
+                <input type="date" id="startupDate" name="startup_date" required>
+            </div>
+            <div class="form-group">
+                <label for="orderType">Order Type</label>
+                <select id="orderType" name="order_type" required>
+                    <option value="">Select Type</option>
+                    <option value="Local">Local</option>
+                    <option value="Export">Export</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="amountUsd">Amount (USD)</label>
+                <input type="number" id="amountUsd" name="amount_usd" step="0.01" required>
+            </div>
+            {% if user.role == 'admin' %}
+            <div class="form-group">
+                <label>Assign Agents (Optional)</label>
+                <div class="agent-selection">
+                    {% for agent in agents %}
+                    <div class="agent-option">
+                        <input type="checkbox" id="create_agent_{{ agent.id }}" name="agent_ids" value="{{ agent.id }}">
+                        <label for="create_agent_{{ agent.id }}">{{ agent.username }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateOrderModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Order</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Assign Agent Modal -->
+<div id="assignModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Assign Agents</h2>
+            <span class="close" onclick="closeAssignModal()">&times;</span>
+        </div>
+        <form id="assignForm">
+            <input type="hidden" id="assignOrderId">
+            <div class="form-group">
+                <label>Select Agents (Multiple Selection)</label>
+                <div class="agent-selection">
+                    {% for agent in agents %}
+                    <div class="agent-option">
+                        <input type="checkbox" id="agent_{{ agent.id }}" name="agent_ids" value="{{ agent.id }}">
+                        <label for="agent_{{ agent.id }}">{{ agent.username }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeAssignModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Assign Agents</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Drag and drop functionality
+let draggedOrder = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const orders = document.querySelectorAll('.card');
+    const statusColumns = document.querySelectorAll('.cards-container');
+    const userRole = '{{ user.role }}';
+    
+    // Only enable drag and drop for admin and users, not agents
+    if (userRole !== 'agent') {
+        orders.forEach(order => {
+            order.addEventListener('dragstart', handleDragStart);
+            order.addEventListener('dragend', handleDragEnd);
+        });
+        
+        statusColumns.forEach(column => {
+            column.addEventListener('dragover', handleDragOver);
+            column.addEventListener('drop', handleDrop);
+            column.addEventListener('dragenter', handleDragEnter);
+            column.addEventListener('dragleave', handleDragLeave);
+        });
+    } else {
+        // For agents, disable dragging by removing draggable attribute
+        orders.forEach(order => {
+            order.draggable = false;
+        });
+    }
+});
+
+function handleDragStart(e) {
+    draggedOrder = this;
+    this.classList.add('dragging');
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    draggedOrder = null;
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+}
+
+function handleDragEnter(e) {
+    e.preventDefault();
+    this.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    this.classList.remove('drag-over');
+    
+    if (draggedOrder) {
+        const newStatus = this.dataset.status;
+        const orderId = draggedOrder.dataset.orderId;
+        
+        // Move order visually
+        this.appendChild(draggedOrder);
+        
+        // Send request to server
+        fetch('/move_order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                order_id: orderId,
+                status: newStatus
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                alert(data.message);
+                // Revert the move
+                location.reload();
+            }
+        });
+    }
+}
+
+// Modal functions
+function openCreateOrderModal() {
+    document.getElementById('createOrderModal').style.display = 'block';
+}
+
+function closeCreateOrderModal() {
+    document.getElementById('createOrderModal').style.display = 'none';
+    document.getElementById('createOrderForm').reset();
+}
+
+function openAssignModal(orderId) {
+    document.getElementById('assignOrderId').value = orderId;
+    document.getElementById('assignModal').style.display = 'block';
+}
+
+function closeAssignModal() {
+    document.getElementById('assignModal').style.display = 'none';
+    document.getElementById('assignForm').reset();
+}
+
+function openChat(orderId) {
+    window.location.href = '/chat/' + orderId;
+}
+
+// Form submissions
+document.getElementById('createOrderForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('/create_order', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            location.reload();
+        }
+    });
+});
+
+document.getElementById('assignForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const orderId = document.getElementById('assignOrderId').value;
+    const agentCheckboxes = document.querySelectorAll('input[name="agent_ids"]:checked');
+    const agentIds = Array.from(agentCheckboxes).map(cb => parseInt(cb.value));
+    
+    if (agentIds.length === 0) {
+        alert('Please select at least one agent');
+        return;
+    }
+    
+    fetch('/assign_multiple_agents', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            order_id: orderId,
+            agent_ids: agentIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+});
+
+// Close modals when clicking outside
+window.onclick = function(event) {
+    const createModal = document.getElementById('createOrderModal');
+    const assignModal = document.getElementById('assignModal');
+    
+    if (event.target == createModal) {
+        closeCreateOrderModal();
+    }
+    if (event.target == assignModal) {
+        closeAssignModal();
+    }
+}
+</script>
+{% endblock %}

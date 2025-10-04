@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Order - {{ order.order_id }}{% endblock %}
+
+{% block content %}
+<div class="edit-order-container">
+    <div class="edit-order-header">
+        <h1><i class="fas fa-edit"></i> Edit Order {{ order.order_id }}</h1>
+        <div class="header-actions">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+    
+    <div class="edit-order-content">
+        <form method="POST" action="{{ url_for('update_order') }}" class="edit-order-form">
+            <input type="hidden" name="order_id" value="{{ order.id }}">
+            
+            <div class="form-section">
+                <h3><i class="fas fa-info-circle"></i> Order Information</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="orderId">Order ID</label>
+                        <input type="text" id="orderId" value="{{ order.order_id }}" disabled class="form-control">
+                        <small class="form-text">Order ID cannot be changed</small>
+                    </div>
+                    
+                    {% if user.role != 'agent' %}
+                    <div class="form-group">
+                        <label for="customerName">Customer Name *</label>
+                        <input type="text" id="customerName" name="customer_name" value="{{ order.customer_name }}" required class="form-control">
+                    </div>
+                    {% else %}
+                    <div class="form-group">
+                        <label for="customerName">Customer Name</label>
+                        <input type="text" id="customerName" value="[Hidden]" readonly class="form-control">
+                    </div>
+                    {% endif %}
+                    
+                    <div class="form-group">
+                        <label for="yarnType">Yarn Type *</label>
+                        <input type="text" id="yarnType" name="yarn_type" value="{{ order.yarn_type }}" required class="form-control">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="quantityKg">Quantity (kg) *</label>
+                        <input type="number" id="quantityKg" name="quantity_kg" value="{{ order.quantity_kg }}" step="0.01" required class="form-control">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="startupDate">Startup Date *</label>
+                        <input type="date" id="startupDate" name="startup_date" value="{{ order.startup_date.strftime('%Y-%m-%d') }}" required class="form-control">
+                    </div>
+                    
+                    {% if user.role != 'agent' %}
+                    <div class="form-group">
+                        <label for="orderType">Order Type *</label>
+                        <select id="orderType" name="order_type" required class="form-control">
+                            <option value="Local" {% if order.order_type == 'Local' %}selected{% endif %}>Local</option>
+                            <option value="Export" {% if order.order_type == 'Export' %}selected{% endif %}>Export</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="amountUsd">Amount (USD) *</label>
+                        <input type="number" id="amountUsd" name="amount_usd" value="{{ order.amount_usd }}" step="0.01" required class="form-control">
+                    </div>
+                    {% else %}
+                    <div class="form-group">
+                        <label for="orderType">Order Type</label>
+                        <input type="text" id="orderType" value="{{ order.order_type }}" readonly class="form-control">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="amountUsd">Amount (USD)</label>
+                        <input type="text" id="amountUsd" value="${{ '%.2f'|format(order.amount_usd) }}" readonly class="form-control">
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if user.role == 'admin' %}
+            <div class="form-section">
+                <h3><i class="fas fa-cog"></i> Admin Settings</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="status">Status *</label>
+                        <select id="status" name="status" required class="form-control">
+                            {% for status_key, status_label in ORDER_STATUSES.items() %}
+                            <option value="{{ status_key }}" {% if order.status == status_key %}selected{% endif %}>{{ status_label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="assignedAgent">Primary Agent</label>
+                        <select id="assignedAgent" name="assigned_agent" class="form-control">
+                            <option value="">No Agent</option>
+                            {% for agent in agents %}
+                            <option value="{{ agent.id }}" {% if order.assigned_agent == agent.id %}selected{% endif %}>{{ agent.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Additional Agents (Multiple Selection)</label>
+                    <div class="agent-selection">
+                        {% for agent in agents %}
+                        <div class="agent-option">
+                            <input type="checkbox" id="edit_agent_{{ agent.id }}" name="agent_ids" value="{{ agent.id }}" 
+                                   {% if agent.id in order.assigned_agents|map(attribute='agent_id')|list %}checked{% endif %}>
+                            <label for="edit_agent_{{ agent.id }}">{{ agent.username }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="form-section">
+                <h3><i class="fas fa-info"></i> Order Details</h3>
+                <div class="order-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Created by:</span>
+                        <span class="detail-value">{{ order.creator.username }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Created at:</span>
+                        <span class="detail-value">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Last updated:</span>
+                        <span class="detail-value">{{ order.updated_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="history.back()">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    Update Order
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.querySelector('.edit-order-form');
+    form.addEventListener('submit', function(e) {
+        const requiredFields = form.querySelectorAll('[required]');
+        let isValid = true;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('error');
+                isValid = false;
+            } else {
+                field.classList.remove('error');
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('Please fill in all required fields.');
+        }
+    });
+    
+    // Real-time validation
+    const inputs = form.querySelectorAll('input, select');
+    inputs.forEach(input => {
+        input.addEventListener('blur', function() {
+            if (this.hasAttribute('required') && !this.value.trim()) {
+                this.classList.add('error');
+            } else {
+                this.classList.remove('error');
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.edit-order-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.edit-order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.edit-order-header h1 {
+    font-size: 1.8rem;
+    color: #333;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.edit-order-content {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.edit-order-form {
+    max-width: 800px;
+}
+
+.form-section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.form-section h3 {
+    font-size: 1.2rem;
+    color: #333;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: border-color 0.3s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-control.error {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+}
+
+.form-control:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.form-text {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+.agent-selection {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.agent-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.agent-option input[type="checkbox"] {
+    margin: 0;
+}
+
+.agent-option label {
+    margin: 0;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.order-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: #666;
+}
+
+.detail-value {
+    color: #333;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #5a6fd8;
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .edit-order-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .agent-selection {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

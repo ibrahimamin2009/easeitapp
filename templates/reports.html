@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}Reports & Archive - Order Management System{% endblock %}
+
+{% block content %}
+<div class="reports-container">
+    <div class="reports-header">
+        <h1><i class="fas fa-chart-line"></i> Reports & Archive</h1>
+        <div class="reports-actions">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Dashboard
+            </a>
+            <a href="{{ url_for('export_orders') }}" class="btn btn-success">
+                <i class="fas fa-download"></i>
+                Export CSV
+            </a>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="filters-section">
+        <form method="GET" action="{{ url_for('reports') }}" class="filters-form">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="start_date">Start Date</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+                </div>
+                <div class="filter-group">
+                    <label for="end_date">End Date</label>
+                    <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="filter-group">
+                    <label for="agent">Agent</label>
+                    <select id="agent" name="agent">
+                        <option value="">All Agents</option>
+                        {% for agent in agents %}
+                        <option value="{{ agent.id }}" {% if agent_filter == agent.id|string %}selected{% endif %}>
+                            {{ agent.username }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="customer">Customer</label>
+                    <input type="text" id="customer" name="customer" value="{{ customer_filter }}" placeholder="Customer name">
+                </div>
+                <div class="filter-group">
+                    <label for="order_type">Order Type</label>
+                    <select id="order_type" name="order_type">
+                        <option value="">All Types</option>
+                        <option value="Local" {% if order_type_filter == 'Local' %}selected{% endif %}>Local</option>
+                        <option value="Export" {% if order_type_filter == 'Export' %}selected{% endif %}>Export</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i>
+                        Apply Filters
+                    </button>
+                    <a href="{{ url_for('reports') }}" class="btn btn-outline">
+                        <i class="fas fa-times"></i>
+                        Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Summary Statistics -->
+    <div class="summary-section">
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="summary-icon">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <div class="summary-content">
+                    <h3>{{ total_orders }}</h3>
+                    <p>Total Orders</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <div class="summary-content">
+                    <h3>${{ "%.2f"|format(total_amount) }}</h3>
+                    <p>Total Revenue</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon">
+                    <i class="fas fa-home"></i>
+                </div>
+                <div class="summary-content">
+                    <h3>{{ orders_by_type['Local']|length }}</h3>
+                    <p>Local Orders</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon">
+                    <i class="fas fa-globe"></i>
+                </div>
+                <div class="summary-content">
+                    <h3>{{ orders_by_type['Export']|length }}</h3>
+                    <p>Export Orders</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Orders by Status -->
+    <div class="status-breakdown">
+        <h2><i class="fas fa-chart-pie"></i> Orders by Status</h2>
+        <div class="status-cards">
+            {% for status, orders_list in orders_by_status.items() %}
+            <div class="status-card">
+                <div class="status-header">
+                    <h3>{{ status }}</h3>
+                    <span class="status-count">{{ orders_list|length }}</span>
+                </div>
+                <div class="status-amount">
+                    {% set status_amount = orders_list|sum(attribute='amount_usd') %}
+                    <span class="amount">${{ "%.2f"|format(status_amount) }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Orders Table -->
+    <div class="orders-table-section">
+        <h2><i class="fas fa-table"></i> Orders List</h2>
+        <div class="table-container">
+            <table class="orders-table">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>Yarn Type</th>
+                        <th>Quantity (kg)</th>
+                        <th>Amount (USD)</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Startup Date</th>
+                        <th>Created By</th>
+                        <th>Assigned Agent</th>
+                        <th>Created At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>{{ order.order_id }}</td>
+                        <td>{{ order.customer_name }}</td>
+                        <td>{{ order.yarn_type }}</td>
+                        <td>{{ order.quantity_kg }}</td>
+                        <td>${{ "%.2f"|format(order.amount_usd) }}</td>
+                        <td>
+                            <span class="order-type-{{ order.order_type.lower() }}">{{ order.order_type }}</span>
+                        </td>
+                        <td>
+                            <span class="status-{{ order.status.lower().replace(' ', '-') }}">{{ order.status }}</span>
+                        </td>
+                        <td>{{ order.startup_date.strftime('%m/%d/%Y') }}</td>
+                        <td>{{ order.creator.username }}</td>
+                        <td>{{ order.agent.username if order.agent else 'Unassigned' }}</td>
+                        <td>{{ order.created_at.strftime('%m/%d/%Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Archived Orders -->
+    <div class="archived-section">
+        <h2><i class="fas fa-archive"></i> Archived Orders</h2>
+        <div class="archived-orders">
+            {% set archived_orders = orders_by_status.get('Archived', []) %}
+            {% if archived_orders %}
+            <div class="archived-grid">
+                {% for order in archived_orders %}
+                <div class="archived-card">
+                    <div class="archived-header">
+                        <h4>{{ order.order_id }}</h4>
+                        <span class="archived-date">{{ order.updated_at.strftime('%m/%d/%Y') }}</span>
+                    </div>
+                    <div class="archived-details">
+                        <p><strong>Customer:</strong> {{ order.customer_name }}</p>
+                        <p><strong>Amount:</strong> ${{ "%.2f"|format(order.amount_usd) }}</p>
+                        <p><strong>Type:</strong> {{ order.order_type }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="no-archived">
+                <i class="fas fa-archive"></i>
+                <p>No archived orders found</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add table sorting functionality
+    const table = document.querySelector('.orders-table');
+    if (table) {
+        const headers = table.querySelectorAll('th');
+        headers.forEach((header, index) => {
+            header.style.cursor = 'pointer';
+            header.addEventListener('click', () => sortTable(index));
+        });
+    }
+    
+    // Add responsive table scrolling
+    const tableContainer = document.querySelector('.table-container');
+    if (tableContainer) {
+        tableContainer.style.overflowX = 'auto';
+    }
+});
+
+function sortTable(columnIndex) {
+    const table = document.querySelector('.orders-table');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    rows.sort((a, b) => {
+        const aValue = a.cells[columnIndex].textContent.trim();
+        const bValue = b.cells[columnIndex].textContent.trim();
+        
+        // Try to parse as numbers first
+        const aNum = parseFloat(aValue.replace(/[$,]/g, ''));
+        const bNum = parseFloat(bValue.replace(/[$,]/g, ''));
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            return aNum - bNum;
+        }
+        
+        // Otherwise sort as strings
+        return aValue.localeCompare(bValue);
+    });
+    
+    // Clear tbody and append sorted rows
+    tbody.innerHTML = '';
+    rows.forEach(row => tbody.appendChild(row));
+}
+</script>
+{% endblock %}

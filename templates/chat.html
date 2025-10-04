@@ -1,0 +1,663 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - Order {{ order.order_id }}{% endblock %}
+
+{% block content %}
+<div class="chat-page">
+    <!-- Header -->
+    <div class="chat-header">
+        <div class="header-left">
+            <a href="{{ url_for('dashboard') }}" class="back-btn">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div class="order-title">
+                <h2>Order #{{ order.order_id }}</h2>
+                <span class="order-status status-{{ order.status.lower().replace(' ', '-') }}">{{ order.status }}</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="order-summary">
+                <span class="customer">{{ order.customer_name }}</span>
+                {% if user.role != 'agent' %}
+                <span class="amount">${{ "%.2f"|format(order.amount_usd) }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Details -->
+    <div class="order-details-section">
+        <div class="details-grid">
+            <div class="detail-item">
+                <span class="label">Yarn Type:</span>
+                <span class="value">{{ order.yarn_type }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="label">Quantity:</span>
+                <span class="value">{{ order.quantity_kg }} kg</span>
+            </div>
+            {% if user.role != 'agent' %}
+            <div class="detail-item">
+                <span class="label">Order Type:</span>
+                <span class="value">{{ order.order_type }}</span>
+            </div>
+            {% endif %}
+            <div class="detail-item">
+                <span class="label">Startup Date:</span>
+                <span class="value">{{ order.startup_date.strftime('%Y-%m-%d') if order.startup_date else 'Not set' }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="label">Created:</span>
+                <span class="value">{{ order.created_at.strftime('%Y-%m-%d') }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Container -->
+    <div class="chat-main">
+        <!-- Messages Area -->
+        <div class="messages-area">
+            <div class="messages-list">
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="message-item {% if message.sender_id == user.id %}own{% else %}other{% endif %}">
+                        <div class="message-bubble">
+                            <div class="message-text">{{ message.message }}</div>
+                            <div class="message-meta">
+                                <span class="sender">{{ message.sender.username }}</span>
+                                <span class="time">{{ message.created_at.strftime('%H:%M') }}</span>
+                                {% if user.role == 'admin' %}
+                                    {% if message.tagged_agents %}
+                                    <div class="message-tags">
+                                        <i class="fas fa-tag"></i>
+                                        {% for tag in message.tagged_agents %}
+                                        <span class="tag">{{ tag.agent.username }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    {% else %}
+                                    <div class="message-tags">
+                                        <i class="fas fa-globe"></i>
+                                        <span class="tag">All</span>
+                                    </div>
+                                    {% endif %}
+                                {% else %}
+                                    <!-- Agents only see a generic message indicator -->
+                                    <div class="message-tags">
+                                        <i class="fas fa-comment"></i>
+                                        <span class="tag">Message</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-comments"></i>
+                        <p>No messages yet</p>
+                        <span>Start the conversation!</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <!-- Message Input -->
+            <div class="message-input">
+                <form id="chatForm" class="input-form">
+                    {% if user.role == 'admin' %}
+                    <!-- Agent Selection -->
+                    <div class="agent-selection">
+                        <div class="selection-header">
+                            <i class="fas fa-users"></i>
+                            <span>Tag agents (optional)</span>
+                        </div>
+                        <div class="agent-tags">
+                            {% for agent in available_agents %}
+                            <label class="agent-tag">
+                                <input type="checkbox" name="tagged_agents" value="{{ agent.id }}">
+                                <span>{{ agent.username }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="input-group">
+                        <textarea 
+                            name="message" 
+                            placeholder="Type your message..." 
+                            required
+                            rows="1"
+                        ></textarea>
+                        <button type="submit" class="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Chat Page Layout */
+.chat-page {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #f5f7fa;
+}
+
+/* Header */
+.chat-header {
+    background: white;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid #e1e8ed;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.back-btn {
+    color: #667eea;
+    font-size: 1.2rem;
+    text-decoration: none;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+    background: #f0f2ff;
+    color: #5a6fd8;
+}
+
+.order-title h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #2d3748;
+    font-weight: 600;
+}
+
+.order-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-left: 0.5rem;
+}
+
+.status-new-order { background: #c6f6d5; color: #22543d; }
+.status-under-booking { background: #fef5e7; color: #744210; }
+.status-booked { background: #bee3f8; color: #2a4365; }
+.status-received-contract { background: #e9d8fd; color: #44337a; }
+.status-confirmed { background: #fed7d7; color: #742a2a; }
+.status-archived { background: #e2e8f0; color: #4a5568; }
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.order-summary {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+
+.customer {
+    font-weight: 600;
+    color: #4a5568;
+}
+
+.amount {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #667eea;
+}
+
+/* Order Details Section */
+.order-details-section {
+    background: white;
+    border-bottom: 1px solid #e1e8ed;
+    padding: 1rem 2rem;
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.detail-item .label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-item .value {
+    font-size: 0.9rem;
+    color: #2d3748;
+    font-weight: 500;
+}
+
+.agent-badge {
+    background: #667eea;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-right: 0.25rem;
+}
+
+.no-assignment {
+    color: #a0aec0;
+    font-style: italic;
+}
+
+/* Chat Main */
+.chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Messages Area */
+.messages-area {
+    flex: 1;
+    overflow: hidden;
+    background: white;
+}
+
+.messages-list {
+    height: 100%;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Messages */
+.message-item {
+    display: flex;
+    margin-bottom: 0.5rem;
+}
+
+.message-item.own {
+    justify-content: flex-end;
+}
+
+.message-item.other {
+    justify-content: flex-start;
+}
+
+.message-bubble {
+    max-width: 70%;
+    padding: 0.75rem 1rem;
+    border-radius: 18px;
+    position: relative;
+}
+
+.message-item.own .message-bubble {
+    background: #667eea;
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.message-item.other .message-bubble {
+    background: #f1f5f9;
+    color: #2d3748;
+    border-bottom-left-radius: 4px;
+}
+
+.message-text {
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.message-meta {
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.sender {
+    font-weight: 600;
+}
+
+.time {
+    opacity: 0.6;
+}
+
+.message-tags {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.message-tags .tag {
+    background: rgba(255,255,255,0.2);
+    padding: 0.125rem 0.375rem;
+    border-radius: 8px;
+    font-size: 0.7rem;
+}
+
+.message-item.other .message-tags .tag {
+    background: rgba(0,0,0,0.1);
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: #a0aec0;
+    text-align: center;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.empty-state span {
+    font-size: 0.9rem;
+    opacity: 0.7;
+}
+
+/* Input Area */
+.input-area {
+    background: white;
+    border-top: 1px solid #e1e8ed;
+    padding: 1rem;
+}
+
+/* Agent Selection */
+.agent-selection {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.selection-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #4a5568;
+}
+
+.agent-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.agent-tag {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    cursor: pointer;
+    padding: 0.375rem 0.75rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    transition: all 0.2s ease;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.agent-tag:hover {
+    border-color: #667eea;
+    background: #f0f2ff;
+}
+
+.agent-tag input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: #667eea;
+}
+
+.agent-tag input[type="checkbox"]:checked + span {
+    color: #667eea;
+    font-weight: 600;
+}
+
+/* Message Input */
+.message-input {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.75rem;
+}
+
+.input-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+}
+
+.input-group {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.input-group textarea {
+    flex: 1;
+    border: none;
+    background: white;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: none;
+    min-height: 40px;
+    max-height: 120px;
+    line-height: 1.4;
+    transition: all 0.2s ease;
+}
+
+.input-group textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.send-btn {
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 44px;
+}
+
+.send-btn:hover {
+    background: #5a6fd8;
+    transform: translateY(-1px);
+}
+
+.send-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .chat-header {
+        padding: 1rem;
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+    
+    .header-right {
+        align-self: stretch;
+    }
+    
+    .order-summary {
+        align-items: flex-start;
+    }
+    
+    .order-details-section {
+        padding: 1rem;
+    }
+    
+    .details-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .message-bubble {
+        max-width: 85%;
+    }
+    
+    .agent-tags {
+        flex-direction: column;
+    }
+    
+    .agent-tag {
+        justify-content: flex-start;
+    }
+    
+    .input-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .input-group {
+        flex-direction: column;
+    }
+    
+    .send-btn {
+        width: 100%;
+        height: 48px;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatForm = document.getElementById('chatForm');
+    const textarea = chatForm.querySelector('textarea');
+    
+    // Auto-resize textarea
+    textarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+    
+    // Form submission
+    chatForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(chatForm);
+        const message = formData.get('message');
+        const taggedAgents = formData.getAll('tagged_agents');
+        
+        console.log('DEBUG: Message:', message);
+        console.log('DEBUG: Tagged agents:', taggedAgents);
+        
+        if (!message.trim()) return;
+        
+        // Show loading state
+        const sendBtn = chatForm.querySelector('.send-btn');
+        const originalIcon = sendBtn.innerHTML;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        sendBtn.disabled = true;
+        
+        const requestData = {
+            order_id: {{ order.id }},
+            message: message,
+            tagged_agents: taggedAgents
+        };
+        
+        console.log('DEBUG: Sending request data:', requestData);
+        
+        fetch('/send_message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Clear form
+                textarea.value = '';
+                textarea.style.height = 'auto';
+                
+                // Clear checkboxes
+                const checkboxes = chatForm.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.checked = false);
+                
+                // Reload page
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error sending message');
+        })
+        .finally(() => {
+            sendBtn.innerHTML = originalIcon;
+            sendBtn.disabled = false;
+        });
+    });
+    
+    // Auto-scroll to bottom
+    const messagesList = document.querySelector('.messages-list');
+    if (messagesList) {
+        messagesList.scrollTop = messagesList.scrollHeight;
+    }
+});
+</script>
+{% endblock %}

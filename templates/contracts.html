@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Contracts & Received - Order Management System{% endblock %}
+
+{% block content %}
+<div class="contracts-container">
+    <div class="contracts-header">
+        <h1><i class="fas fa-file-contract"></i> Contracts & Received</h1>
+        <div class="contracts-actions">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+    
+    <div class="contracts-content">
+        {% if orders %}
+        <div class="orders-grid">
+            {% for order in orders %}
+            <div class="order-card">
+                <div class="order-header">
+                    <h3>{{ order.order_id }}</h3>
+                    <span class="order-status status-{{ order.status.lower().replace(' ', '-') }}">{{ order.status }}</span>
+                </div>
+                
+                <div class="order-details">
+                    {% if user.role != 'agent' %}
+                    <div class="detail-row">
+                        <span class="label">Customer:</span>
+                        <span class="value">{{ order.customer_name }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="detail-row">
+                        <span class="label">Yarn Type:</span>
+                        <span class="value">{{ order.yarn_type }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Quantity:</span>
+                        <span class="value">{{ order.quantity_kg }} kg</span>
+                    </div>
+                    {% if user.role != 'agent' %}
+                    <div class="detail-row">
+                        <span class="label">Amount:</span>
+                        <span class="value">${{ "%.2f"|format(order.amount_usd) }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Type:</span>
+                        <span class="value order-type-{{ order.order_type.lower() }}">{{ order.order_type }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="detail-row">
+                        <span class="label">Startup Date:</span>
+                        <span class="value">{{ order.startup_date.strftime('%m/%d/%Y') }}</span>
+                    </div>
+                </div>
+                
+                <div class="order-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-user"></i>
+                        <span>Created by: {{ order.creator.username }}</span>
+                    </div>
+                    {% if order.agent %}
+                    <div class="meta-item">
+                        <i class="fas fa-user-check"></i>
+                        <span>Assigned to: 
+                            {% if user.role == 'admin' %}
+                                {{ order.agent.username }}
+                            {% else %}
+                                Agent
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="contract-section">
+                    <h4><i class="fas fa-file-pdf"></i> Contracts</h4>
+                    
+                    {% if order.contracts %}
+                    <div class="contracts-list">
+                        {% for contract in order.contracts %}
+                        <div class="contract-item">
+                            <div class="contract-info">
+                                <i class="fas fa-file"></i>
+                                <span class="contract-name">{{ contract.filename }}</span>
+                                <span class="contract-date">{{ contract.uploaded_at.strftime('%m/%d/%Y %H:%M') }}</span>
+                            </div>
+                            <div class="contract-actions">
+                                <a href="/download_contract/{{ contract.id }}" class="btn-icon" title="Download">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="no-contracts">
+                        <i class="fas fa-file-plus"></i>
+                        <p>No contracts uploaded yet</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if user.role in ['admin', 'agent'] and (user.role == 'admin' or order.assigned_agent == user.id) %}
+                    <div class="upload-section">
+                        <form method="POST" action="{{ url_for('upload_contract') }}" enctype="multipart/form-data" class="upload-form">
+                            <input type="hidden" name="order_id" value="{{ order.id }}">
+                            <div class="file-input-group">
+                                <input type="file" name="contract_file" accept=".pdf,.doc,.docx" required class="file-input">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-upload"></i>
+                                    Upload Contract
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="order-actions">
+                    <a href="{{ url_for('chat', order_id=order.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-comments"></i>
+                        Chat
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-orders">
+            <i class="fas fa-file-contract"></i>
+            <h3>No Orders Found</h3>
+            <p>There are no orders in Booked or Received Contract status.</p>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                Create New Order
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add file input styling
+    const fileInputs = document.querySelectorAll('.file-input');
+    
+    fileInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            const fileName = this.files[0]?.name || 'No file selected';
+            const label = this.nextElementSibling;
+            if (label && label.tagName === 'BUTTON') {
+                label.innerHTML = `<i class="fas fa-upload"></i> Upload ${fileName}`;
+            }
+        });
+    });
+    
+    // Handle upload form submission
+    const uploadForms = document.querySelectorAll('.upload-form');
+    
+    uploadForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const fileInput = this.querySelector('input[type="file"]');
+            if (!fileInput.files[0]) {
+                e.preventDefault();
+                alert('Please select a file to upload');
+                return false;
+            }
+            
+            // Show loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+            submitBtn.disabled = true;
+            
+            // Re-enable button after 3 seconds (in case of error)
+            setTimeout(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }, 3000);
+        });
+    });
+});
+</script>
+{% endblock %}
