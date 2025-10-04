@@ -163,6 +163,15 @@ def index():
         return redirect(url_for('login'))
     return redirect(url_for('dashboard'))
 
+@app.route('/health')
+def health_check():
+    """Simple health check endpoint for debugging"""
+    return jsonify({
+        'status': 'healthy',
+        'database_url': 'configured' if app.config.get('SQLALCHEMY_DATABASE_URI') else 'missing',
+        'secret_key': 'configured' if app.config.get('SECRET_KEY') else 'missing'
+    })
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -1105,45 +1114,50 @@ def logout():
 
 # Initialize database
 def create_tables():
-    with app.app_context():
-        db.create_all()
-        
-        # Create admin user if it doesn't exist
-        if User.query.filter_by(role='admin').count() == 0:
-            admin = User(
-                username='admin',
-                email='admin@yarnsystem.com',
-                password_hash=generate_password_hash('admin123'),
-                role='admin'
-            )
-            db.session.add(admin)
-            db.session.commit()
-        
-        # Create sample agents if none exist
-        if User.query.filter_by(role='agent').count() == 0:
-            agents = [
-                User(username='agent1', email='agent1@yarnsystem.com', password_hash=generate_password_hash('agent123'), role='agent'),
-                User(username='agent2', email='agent2@yarnsystem.com', password_hash=generate_password_hash('agent123'), role='agent'),
-                User(username='agent3', email='agent3@yarnsystem.com', password_hash=generate_password_hash('agent123'), role='agent'),
-                User(username='agent4', email='agent4@yarnsystem.com', password_hash=generate_password_hash('agent123'), role='agent'),
-                User(username='agent5', email='agent5@yarnsystem.com', password_hash=generate_password_hash('agent123'), role='agent')
-            ]
-            for agent in agents:
-                db.session.add(agent)
-            db.session.commit()
-        
-        # Create sample users if none exist
-        if User.query.filter_by(role='user').count() == 0:
-            users = [
-                User(username='user1', email='user1@yarnsystem.com', password_hash=generate_password_hash('user123'), role='user'),
-                User(username='user2', email='user2@yarnsystem.com', password_hash=generate_password_hash('user123'), role='user'),
-                User(username='user3', email='user3@yarnsystem.com', password_hash=generate_password_hash('user123'), role='user'),
-                User(username='user4', email='user4@yarnsystem.com', password_hash=generate_password_hash('user123'), role='user'),
-                User(username='user5', email='user5@yarnsystem.com', password_hash=generate_password_hash('user123'), role='user')
-            ]
-            for user in users:
-                db.session.add(user)
-            db.session.commit()
+    try:
+        with app.app_context():
+            db.create_all()
+            
+            # Create admin user if it doesn't exist
+            if User.query.filter_by(role='admin').count() == 0:
+                admin = User(
+                    username='admin',
+                    email='admin@yarnsystem.com',
+                    password_hash=generate_password_hash('admin123'),
+                    role='admin'
+                )
+                db.session.add(admin)
+                db.session.commit()
+            
+            # Create sample agents if none exist
+            if User.query.filter_by(role='agent').count() == 0:
+                agents = [
+                    User(username='agent1', email='agent1@yarnsystem.com', password_hash=generate_password_hash('agent123'), role='agent'),
+                    User(username='agent2', email='agent2@yarnsystem.com', password_hash=generate_password_hash('agent123'), role='agent'),
+                    User(username='agent3', email='agent3@yarnsystem.com', password_hash=generate_password_hash('agent123'), role='agent'),
+                    User(username='agent4', email='agent4@yarnsystem.com', password_hash=generate_password_hash('agent123'), role='agent'),
+                    User(username='agent5', email='agent5@yarnsystem.com', password_hash=generate_password_hash('agent123'), role='agent')
+                ]
+                for agent in agents:
+                    db.session.add(agent)
+                db.session.commit()
+            
+            # Create sample users if none exist
+            if User.query.filter_by(role='user').count() == 0:
+                users = [
+                    User(username='user1', email='user1@yarnsystem.com', password_hash=generate_password_hash('user123'), role='user'),
+                    User(username='user2', email='user2@yarnsystem.com', password_hash=generate_password_hash('user123'), role='user'),
+                    User(username='user3', email='user3@yarnsystem.com', password_hash=generate_password_hash('user123'), role='user'),
+                    User(username='user4', email='user4@yarnsystem.com', password_hash=generate_password_hash('user123'), role='user'),
+                    User(username='user5', email='user5@yarnsystem.com', password_hash=generate_password_hash('user123'), role='user')
+                ]
+                for user in users:
+                    db.session.add(user)
+                db.session.commit()
+    except Exception as e:
+        print(f"Database initialization error: {e}")
+        # Don't crash the app if database initialization fails
+        pass
 
 @app.route('/confirm_order/<int:order_id>')
 def confirm_order(order_id):
@@ -1261,6 +1275,10 @@ def delete_order():
 if __name__ == '__main__':
     create_tables()
     app.run(debug=True, port=5001)
-else:
-    # Initialize database when running in serverless environment
+
+# Initialize database when imported (for serverless)
+try:
     create_tables()
+except Exception as e:
+    print(f"Initial database setup failed: {e}")
+    # Continue anyway - tables will be created on first request
