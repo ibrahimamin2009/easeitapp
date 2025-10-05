@@ -158,22 +158,9 @@
                                 <div class="message-header">
                                     <span class="message-author">{{ message.sender.username }}</span>
                                     <span class="message-role">{{ message.sender.role|title }}</span>
-                                    <span class="message-time">{{ message.timestamp.strftime('%H:%M') }}</span>
+                                    <span class="message-time">{{ message.created_at.strftime('%H:%M') }}</span>
                                 </div>
-                                <div class="message-text">{{ message.content }}</div>
-                                {% if message.attachments %}
-                                <div class="message-attachments">
-                                    {% for attachment in message.attachments %}
-                                    <div class="attachment-item">
-                                        <i class="fas fa-paperclip"></i>
-                                        <span>{{ attachment.filename }}</span>
-                                        <button onclick="downloadAttachment('{{ attachment.id }}')" class="btn btn-sm">
-                                            <i class="fas fa-download"></i>
-                                        </button>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
+                                <div class="message-text">{{ message.message }}</div>
                             </div>
                         </div>
                         {% endfor %}
