@@ -307,7 +307,7 @@ def dashboard():
     if user.role == 'agent':
         agent_assigned_order_ids = [oa.order_id for oa in user.order_assignments]
     
-    return render_template('dashboard.html', 
+    return render_template('futuristic-dashboard.html', 
                          orders_by_status=orders_by_status, 
                          user=user, 
                          agents=agents,

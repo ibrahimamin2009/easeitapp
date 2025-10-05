@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yarn Control Hub - Futuristic Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/futuristic-style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="main-container">
+        <!-- Floating Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-item active" onclick="navigateTo('dashboard')">
+                <i class="fas fa-th-large sidebar-icon"></i>
+                <span class="sidebar-text">Orders</span>
+            </div>
+            <div class="sidebar-item" onclick="navigateTo('suppliers')">
+                <i class="fas fa-truck sidebar-icon"></i>
+                <span class="sidebar-text">Suppliers</span>
+            </div>
+            <div class="sidebar-item" onclick="navigateTo('messages')">
+                <i class="fas fa-comments sidebar-icon"></i>
+                <span class="sidebar-text">Messages</span>
+            </div>
+            <div class="sidebar-item" onclick="navigateTo('analytics')">
+                <i class="fas fa-chart-line sidebar-icon"></i>
+                <span class="sidebar-text">Analytics</span>
+            </div>
+            {% if user.role == 'admin' %}
+            <div class="sidebar-item" onclick="navigateTo('admin')">
+                <i class="fas fa-cog sidebar-icon"></i>
+                <span class="sidebar-text">Admin Panel</span>
+            </div>
+            {% endif %}
+            <div class="sidebar-item" onclick="logout()">
+                <i class="fas fa-sign-out-alt sidebar-icon"></i>
+                <span class="sidebar-text">Logout</span>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div>
+                    <h1 class="header-title">Yarn Control Hub</h1>
+                    <p style="color: rgba(255, 255, 255, 0.7); margin-top: 0.5rem;">Welcome, {{ user.username }} • {{ user.role|title }}</p>
+                </div>
+                <div class="view-toggle">
+                    <button class="toggle-btn active" onclick="switchView('board')">
+                        <i class="fas fa-th-large"></i> Board
+                    </button>
+                    <button class="toggle-btn" onclick="switchView('dashboard')">
+                        <i class="fas fa-chart-bar"></i> Analytics
+                    </button>
+                </div>
+            </header>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash-message flash-{{ category }} fade-in">
+                                {{ message }}
+                                <button class="close-btn" onclick="this.parentElement.remove()">&times;</button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Holographic Search Bar -->
+            <div class="search-container">
+                <input type="text" class="search-bar" placeholder="🔍 Search orders, customers, yarn types..." id="holographicSearch" onkeyup="filterCards(this.value)">
+                <button class="ai-sort-btn" onclick="aiSortOrders()">
+                    ✨ AI Sort Orders
+                </button>
+            </div>
+
+            <!-- Board View -->
+            <div id="boardView" class="view-content">
+                <div class="board-container">
+                    {% for status, orders in orders_by_status.items() %}
+                    <div class="column" data-status="{{ status }}">
+                        <div class="column-header">
+                            <h3 class="column-title">{{ status }}</h3>
+                            <span class="column-count">{{ orders|length }}</span>
+                        </div>
+                        <div class="cards-container">
+                            {% for order in orders %}
+                            <div class="card fade-in" data-order-id="{{ order.id }}" draggable="true" data-search="{{ (order.order_id + ' ' + order.customer_name + ' ' + order.yarn_type + ' ' + order.order_type)|lower }}">
+                                <div class="card-header">
+                                    <span class="card-id">{{ order.order_id }}</span>
+                                    <span class="card-status status-{{ status|lower|replace(' ', '-') }}"></span>
+                                </div>
+                                
+                                <div class="card-content">
+                                    <h4 class="card-title">{{ order.customer_name }}</h4>
+                                    
+                                    <!-- Yarn Preview Circle -->
+                                    <div class="yarn-preview" style="background: linear-gradient(45deg, 
+                                        {% if 'cotton' in order.yarn_type.lower() %}#ff6b6b, #4ecdc4
+                                        {% elif 'wool' in order.yarn_type.lower() %}#a8e6cf, #ffd93d
+                                        {% elif 'silk' in order.yarn_type.lower() %}#ff9a9e, #fecfef
+                                        {% else %}#667eea, #764ba2{% endif %});">
+                                    </div>
+                                    
+                                    <div class="card-details">
+                                        <p><strong>Yarn:</strong> {{ order.yarn_type }}</p>
+                                        <p><strong>Quantity:</strong> {{ order.quantity_kg }} kg</p>
+                                        <p><strong>Amount:</strong> ${{ order.amount_usd }}</p>
+                                        <p><strong>Type:</strong> {{ order.order_type }}</p>
+                                    </div>
+                                    
+                                    <!-- Timeline Strip -->
+                                    <div class="timeline">
+                                        <div class="timeline-progress" style="width: 
+                                            {% if status == 'New Order' %}20%
+                                            {% elif status == 'Under Booking' %}40%
+                                            {% elif status == 'Booked' %}60%
+                                            {% elif status == 'Received Contract' %}80%
+                                            {% else %}100%{% endif %};">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card-footer">
+                                    <div class="card-tags">
+                                        <span class="tag">{{ order.order_type }}</span>
+                                        {% if order.agent %}
+                                        <span class="tag">{{ order.agent.username }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="card-time">
+                                        {{ order.startup_date.strftime('%m/%d') }}
+                                    </div>
+                                </div>
+                                
+                                <!-- Card Actions (on hover) -->
+                                <div class="card-actions" style="position: absolute; top: 10px; right: 10px; opacity: 0; transition: opacity 0.3s ease;">
+                                    {% if user.role == 'admin' %}
+                                    <button onclick="openAssignModal({{ order.id }})" class="btn btn-sm btn-secondary" title="Assign Agent">
+                                        <i class="fas fa-user-plus"></i>
+                                    </button>
+                                    {% endif %}
+                                    <button onclick="openChat({{ order.id }})" class="btn btn-sm btn-secondary" title="Chat">
+                                        <i class="fas fa-comments"></i>
+                                    </button>
+                                    <a href="{{ url_for('edit_order', order_id=order.id) }}" class="btn btn-sm btn-secondary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if user.role == 'admin' %}
+                                    <button onclick="deleteOrder({{ order.id }})" class="btn btn-sm btn-secondary" title="Delete" style="color: var(--status-red);">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Dashboard Analytics View -->
+            <div id="dashboardView" class="view-content" style="display: none;">
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <h3>Total Orders</h3>
+                        <div class="stat-number">{{ orders_by_status.values()|map('length')|sum }}</div>
+                        <div class="stat-label">This Month</div>
+                    </div>
+                    <div class="dashboard-card">
+                        <h3>Active Orders</h3>
+                        <div class="stat-number">{{ (orders_by_status.values()|map('length')|sum) - orders_by_status.get('Archived', [])|length }}</div>
+                        <div class="stat-label">In Progress</div>
+                    </div>
+                    <div class="dashboard-card">
+                        <h3>Total Value</h3>
+                        <div class="stat-number">${{ orders_by_status.values()|flatten|map(attribute='amount_usd')|sum|round|int }}</div>
+                        <div class="stat-label">USD</div>
+                    </div>
+                    <div class="dashboard-card">
+                        <h3>Completion Rate</h3>
+                        <div class="stat-number">{{ ((orders_by_status.get('Archived', [])|length / orders_by_status.values()|map('length')|sum * 100) if orders_by_status.values()|map('length')|sum > 0 else 0)|round }}%</div>
+                        <div class="stat-label">Orders Completed</div>
+                    </div>
+                </div>
+                
+                <!-- Yarn Type Breakdown -->
+                <div class="dashboard-card" style="grid-column: 1 / -1;">
+                    <h3>Yarn Type Distribution</h3>
+                    <div style="display: flex; gap: 2rem; flex-wrap: wrap; margin-top: 1rem;">
+                        {% set yarn_types = {} %}
+                        {% for order in orders_by_status.values()|flatten %}
+                            {% set _ = yarn_types.update({order.yarn_type: yarn_types.get(order.yarn_type, 0) + 1}) %}
+                        {% endfor %}
+                        {% for yarn_type, count in yarn_types.items() %}
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div class="yarn-preview" style="width: 30px; height: 30px; margin: 0;"></div>
+                            <span style="color: rgba(255, 255, 255, 0.8);">{{ yarn_type }} ({{ count }})</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div style="position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 1000;">
+                {% if user.role in ['user', 'admin'] %}
+                <button onclick="openCreateCardModal()" class="btn btn-primary glow-animation">
+                    <i class="fas fa-plus"></i> Create Order
+                </button>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Floating Assistant Orb -->
+    <div class="assistant-orb" onclick="openAssistant()" title="AI Assistant"></div>
+
+    <!-- Create Order Modal -->
+    <div id="createCardModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCreateCardModal()">&times;</span>
+            <h2>Create New Order</h2>
+            <form id="createCardForm" action="{{ url_for('create_order') }}" method="POST">
+                <div class="form-group">
+                    <label for="customer_name">Customer Name</label>
+                    <input type="text" id="customer_name" name="customer_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="yarn_type">Yarn Type</label>
+                    <input type="text" id="yarn_type" name="yarn_type" required>
+                </div>
+                <div class="form-group">
+                    <label for="quantity_kg">Quantity (kg)</label>
+                    <input type="number" id="quantity_kg" name="quantity_kg" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="startup_date">Startup Date</label>
+                    <input type="date" id="startup_date" name="startup_date" required>
+                </div>
+                <div class="form-group">
+                    <label for="order_type">Order Type</label>
+                    <select id="order_type" name="order_type" required>
+                        <option value="Local">Local</option>
+                        <option value="Export">Export</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="amount_usd">Amount (USD)</label>
+                    <input type="number" id="amount_usd" name="amount_usd" step="0.01" required>
+                </div>
+                {% if user.role == 'admin' %}
+                <div class="form-group">
+                    <label>Assign Agents</label>
+                    {% for agent in agents %}
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="agent_ids" value="{{ agent.id }}">
+                        {{ agent.username }}
+                    </label>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div class="form-actions">
+                    <button type="button" onclick="closeCreateCardModal()" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assign Agent Modal -->
+    <div id="assignModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAssignModal()">&times;</span>
+            <h2>Assign Agents</h2>
+            <form id="assignForm">
+                <input type="hidden" id="assignCardId" name="order_id">
+                <div class="form-group">
+                    <label>Select Agents</label>
+                    {% for agent in agents %}
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="agent_ids" value="{{ agent.id }}">
+                        {{ agent.username }}
+                    </label>
+                    {% endfor %}
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="closeAssignModal()" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Assign Agents</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/futuristic-interactions.js') }}"></script>
+</body>
+</html>
