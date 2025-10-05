@@ -45,7 +45,7 @@
             <header class="header">
                 <div>
                     <h1 class="header-title">Yarn Control Hub</h1>
-                    <p style="color: rgba(255, 255, 255, 0.7); margin-top: 0.5rem;">Welcome, {{ user.username }} • {{ user.role|title }}</p>
+                    <p style="color: var(--text-secondary); margin-top: 0.5rem;">Welcome, {{ user.username }} • {{ user.role|title }}</p>
                 </div>
                 <div class="view-toggle">
                     <button class="toggle-btn active" onclick="switchView('board')">
@@ -197,7 +197,7 @@
                         {% for yarn_type, count in yarn_types.items() %}
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <div class="yarn-preview" style="width: 30px; height: 30px; margin: 0;"></div>
-                            <span style="color: rgba(255, 255, 255, 0.8);">{{ yarn_type }} ({{ count }})</span>
+                            <span style="color: var(--text-secondary);">{{ yarn_type }} ({{ count }})</span>
                         </div>
                         {% endfor %}
                     </div>
