@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Control Hub - Futuristic Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/futuristic-style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="main-container">
+        <!-- Floating Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-item" onclick="navigateTo('dashboard')">
+                <i class="fas fa-th-large sidebar-icon"></i>
+                <span class="sidebar-text">Dashboard</span>
+            </div>
+            <div class="sidebar-item" onclick="navigateTo('suppliers')">
+                <i class="fas fa-truck sidebar-icon"></i>
+                <span class="sidebar-text">Suppliers</span>
+            </div>
+            <div class="sidebar-item" onclick="navigateTo('messages')">
+                <i class="fas fa-comments sidebar-icon"></i>
+                <span class="sidebar-text">Messages</span>
+            </div>
+            <div class="sidebar-item" onclick="navigateTo('analytics')">
+                <i class="fas fa-chart-line sidebar-icon"></i>
+                <span class="sidebar-text">Analytics</span>
+            </div>
+            <div class="sidebar-item active" onclick="navigateTo('admin')">
+                <i class="fas fa-cog sidebar-icon"></i>
+                <span class="sidebar-text">Admin Panel</span>
+            </div>
+            <div class="sidebar-item" onclick="logout()">
+                <i class="fas fa-sign-out-alt sidebar-icon"></i>
+                <span class="sidebar-text">Logout</span>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div>
+                    <h1 class="header-title">Admin Control Hub</h1>
+                    <p style="color: rgba(255, 255, 255, 0.7); margin-top: 0.5rem;">System Administration & User Management</p>
+                </div>
+                <div class="admin-actions">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <a href="{{ url_for('register') }}" class="btn btn-primary glow-animation">
+                        <i class="fas fa-user-plus"></i> Add User
+                    </a>
+                </div>
+            </header>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash-message flash-{{ category }} fade-in">
+                                {{ message }}
+                                <button class="close-btn" onclick="this.parentElement.remove()">&times;</button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Admin Stats Overview -->
+            <div class="dashboard-grid" style="margin-bottom: 2rem;">
+                <div class="dashboard-card">
+                    <h3>Total Users</h3>
+                    <div class="stat-number">{{ users|length }}</div>
+                    <div class="stat-label">System Users</div>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Active Users</h3>
+                    <div class="stat-number">{{ users|selectattr('is_active')|list|length }}</div>
+                    <div class="stat-label">Currently Active</div>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Admin Users</h3>
+                    <div class="stat-number">{{ users|selectattr('role', 'equalto', 'admin')|list|length }}</div>
+                    <div class="stat-label">Administrators</div>
+                </div>
+                <div class="dashboard-card">
+                    <h3>System Health</h3>
+                    <div class="stat-number" style="color: var(--status-green);">98%</div>
+                    <div class="stat-label">Operational</div>
+                </div>
+            </div>
+
+            <!-- User Management Section -->
+            <div class="admin-section">
+                <div class="section-header">
+                    <h2 style="color: var(--neon-cyan); font-family: var(--font-display);">
+                        <i class="fas fa-users"></i> User Management Matrix
+                    </h2>
+                    <div class="section-actions">
+                        <div class="search-container" style="margin: 0; max-width: 300px;">
+                            <input type="text" class="search-bar" placeholder="🔍 Search users..." id="userSearch" onkeyup="filterUsers(this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="users-grid">
+                    {% for user in users %}
+                    <div class="user-card futuristic-card" data-user-id="{{ user.id }}" data-search="{{ (user.username + ' ' + user.email + ' ' + user.role)|lower }}">
+                        <div class="user-header">
+                            <div class="user-avatar">
+                                <div class="avatar-glow" style="background: linear-gradient(45deg, 
+                                    {% if user.role == 'admin' %}var(--neon-cyan), var(--neon-blue)
+                                    {% elif user.role == 'agent' %}var(--gradient-amber)
+                                    {% else %}var(--status-green), var(--status-blue){% endif %});">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            </div>
+                            <div class="user-info">
+                                <h3>{{ user.username }}</h3>
+                                <p>{{ user.email }}</p>
+                                <div class="user-role-badge">{{ user.role|title }}</div>
+                            </div>
+                            <div class="user-status">
+                                <div class="status-indicator {% if user.is_active %}status-active{% else %}status-inactive{% endif %}">
+                                    <div class="status-dot"></div>
+                                    <span>{% if user.is_active %}Active{% else %}Inactive{% endif %}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="user-details">
+                            <div class="detail-row">
+                                <span class="detail-label">Role:</span>
+                                <span class="detail-value">{{ user.role|title }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Created:</span>
+                                <span class="detail-value">{{ user.created_at.strftime('%Y-%m-%d') }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Orders:</span>
+                                <span class="detail-value">{{ user.orders|length }} assigned</span>
+                            </div>
+                        </div>
+
+                        <div class="user-actions">
+                            <button onclick="toggleUserStatus({{ user.id }})" class="btn btn-sm btn-secondary" title="Toggle Status">
+                                <i class="fas fa-power-off"></i>
+                            </button>
+                            <button onclick="editUser({{ user.id }})" class="btn btn-sm btn-secondary" title="Edit User">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="viewUserOrders({{ user.id }})" class="btn btn-sm btn-secondary" title="View Orders">
+                                <i class="fas fa-list"></i>
+                            </button>
+                            {% if user.id != session.user_id %}
+                            <button onclick="deleteUser({{ user.id }})" class="btn btn-sm btn-secondary" title="Delete User" style="color: var(--status-red);">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- System Settings Section -->
+            <div class="admin-section">
+                <div class="section-header">
+                    <h2 style="color: var(--neon-cyan); font-family: var(--font-display);">
+                        <i class="fas fa-cogs"></i> System Configuration
+                    </h2>
+                </div>
+
+                <div class="settings-grid">
+                    <div class="setting-card">
+                        <div class="setting-icon">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <div class="setting-info">
+                            <h4>Database Status</h4>
+                            <p>Connection: <span style="color: var(--status-green);">Active</span></p>
+                            <p>Records: {{ users|length + orders|length }} total</p>
+                        </div>
+                        <div class="setting-action">
+                            <button class="btn btn-secondary btn-sm">Test Connection</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-card">
+                        <div class="setting-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="setting-info">
+                            <h4>Server Performance</h4>
+                            <p>CPU: <span style="color: var(--status-green);">Normal</span></p>
+                            <p>Memory: <span style="color: var(--status-yellow);">75%</span></p>
+                        </div>
+                        <div class="setting-action">
+                            <button class="btn btn-secondary btn-sm">View Details</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-card">
+                        <div class="setting-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="setting-info">
+                            <h4>Security Status</h4>
+                            <p>Firewall: <span style="color: var(--status-green);">Enabled</span></p>
+                            <p>SSL: <span style="color: var(--status-green);">Active</span></p>
+                        </div>
+                        <div class="setting-action">
+                            <button class="btn btn-secondary btn-sm">Security Log</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-card">
+                        <div class="setting-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="setting-info">
+                            <h4>Analytics</h4>
+                            <p>Active Sessions: <span style="color: var(--neon-cyan);">{{ users|selectattr('is_active')|list|length }}</span></p>
+                            <p>Daily Usage: <span style="color: var(--status-blue);">High</span></p>
+                        </div>
+                        <div class="setting-action">
+                            <button class="btn btn-secondary btn-sm">View Reports</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div style="position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 1000;">
+                <button onclick="openSystemBackup()" class="btn btn-primary glow-animation">
+                    <i class="fas fa-download"></i> System Backup
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Floating Assistant Orb -->
+    <div class="assistant-orb" onclick="openAssistant()" title="AI Assistant"></div>
+
+    <!-- Edit User Modal -->
+    <div id="editUserModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditUserModal()">&times;</span>
+            <h2>Edit User</h2>
+            <form id="editUserForm">
+                <input type="hidden" id="editUserId" name="user_id">
+                <div class="form-group">
+                    <label for="editUsername">Username</label>
+                    <input type="text" id="editUsername" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="editEmail">Email</label>
+                    <input type="email" id="editEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="editRole">Role</label>
+                    <select id="editRole" name="role" required>
+                        <option value="user">User</option>
+                        <option value="agent">Agent</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="editIsActive" name="is_active">
+                        Active User
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="closeEditUserModal()" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/futuristic-interactions.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin-panel.js') }}"></script>
+</body>
+</html>

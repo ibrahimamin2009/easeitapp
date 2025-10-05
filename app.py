@@ -198,7 +198,7 @@ def login():
         else:
             flash('Invalid username or password', 'error')
     
-    return render_template('login.html')
+    return render_template('futuristic-login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -211,11 +211,11 @@ def register():
         # Check if user already exists
         if User.query.filter_by(username=username).first():
             flash('Username already exists', 'error')
-            return render_template('register.html')
+            return render_template('futuristic-register.html')
         
         if User.query.filter_by(email=email).first():
             flash('Email already exists', 'error')
-            return render_template('register.html')
+            return render_template('futuristic-register.html')
         
         # Create new user
         user = User(
@@ -231,7 +231,7 @@ def register():
         flash('Registration successful! Please login.', 'success')
         return redirect(url_for('login'))
     
-    return render_template('register.html')
+    return render_template('futuristic-register.html')
 
 @app.route('/dashboard')
 def dashboard():
@@ -610,7 +610,7 @@ def chat(order_id):
         if order.assigned_agent and order.agent not in available_agents:
             available_agents.append(order.agent)
     
-    return render_template('chat.html', order=order, messages=messages, user=user, available_agents=available_agents)
+    return render_template('futuristic-chat.html', order=order, messages=messages, user=user, available_agents=available_agents, participants=participants, online_users=online_users)
 
 
 
@@ -710,7 +710,7 @@ def edit_order(order_id):
     # Get agents for admin to assign
     agents = User.query.filter_by(role='agent').all() if user.role == 'admin' else []
     
-    return render_template('edit_order.html', order=order, user=user, agents=agents, ORDER_STATUSES=ORDER_STATUSES)
+    return render_template('futuristic-edit-order.html', order=order, user=user, agents=agents, ORDER_STATUSES=ORDER_STATUSES)
 
 @app.route('/update_order', methods=['POST'])
 def update_order():
@@ -1066,7 +1066,7 @@ def admin_panel():
     # Get unassigned orders
     unassigned_orders = Order.query.filter_by(assigned_agent=None).all()
     
-    return render_template('admin_panel.html', users=users, all_orders=all_orders, unassigned_orders=unassigned_orders, user=user)
+    return render_template('futuristic-admin-panel.html', users=users, all_orders=all_orders, unassigned_orders=unassigned_orders, user=user)
 
 @app.route('/update_user', methods=['POST'])
 def update_user():

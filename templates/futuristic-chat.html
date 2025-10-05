@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Communication Hub - Order {{ order.order_id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/futuristic-style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="main-container">
+        <!-- Floating Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-item" onclick="navigateTo('dashboard')">
+                <i class="fas fa-th-large sidebar-icon"></i>
+                <span class="sidebar-text">Dashboard</span>
+            </div>
+            <div class="sidebar-item" onclick="navigateTo('suppliers')">
+                <i class="fas fa-truck sidebar-icon"></i>
+                <span class="sidebar-text">Suppliers</span>
+            </div>
+            <div class="sidebar-item active" onclick="navigateTo('messages')">
+                <i class="fas fa-comments sidebar-icon"></i>
+                <span class="sidebar-text">Messages</span>
+            </div>
+            <div class="sidebar-item" onclick="navigateTo('analytics')">
+                <i class="fas fa-chart-line sidebar-icon"></i>
+                <span class="sidebar-text">Analytics</span>
+            </div>
+            {% if user.role == 'admin' %}
+            <div class="sidebar-item" onclick="navigateTo('admin')">
+                <i class="fas fa-cog sidebar-icon"></i>
+                <span class="sidebar-text">Admin Panel</span>
+            </div>
+            {% endif %}
+            <div class="sidebar-item" onclick="logout()">
+                <i class="fas fa-sign-out-alt sidebar-icon"></i>
+                <span class="sidebar-text">Logout</span>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Chat Header -->
+            <header class="header">
+                <div class="chat-header-content">
+                    <div class="header-left">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                        <div class="order-info">
+                            <h1 class="header-title">Communication Hub</h1>
+                            <div class="order-details">
+                                <span class="order-id">Order #{{ order.order_id }}</span>
+                                <span class="customer-name">{{ order.customer_name }}</span>
+                                <span class="order-status status-{{ order.status.lower().replace(' ', '-') }}">
+                                    {{ order.status }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <div class="order-summary">
+                            <div class="summary-item">
+                                <span class="label">Yarn:</span>
+                                <span class="value">{{ order.yarn_type }}</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="label">Quantity:</span>
+                                <span class="value">{{ order.quantity_kg }} kg</span>
+                            </div>
+                            {% if user.role != 'agent' %}
+                            <div class="summary-item">
+                                <span class="label">Amount:</span>
+                                <span class="value">${{ "%.2f"|format(order.amount_usd) }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Chat Interface -->
+            <div class="chat-container">
+                <!-- Participants Panel -->
+                <div class="participants-panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-users"></i> Participants</h3>
+                        <span class="participant-count">{{ participants|length }}</span>
+                    </div>
+                    <div class="participants-list">
+                        {% for participant in participants %}
+                        <div class="participant-item" data-user-id="{{ participant.id }}">
+                            <div class="participant-avatar">
+                                <div class="avatar-glow" style="background: linear-gradient(45deg, 
+                                    {% if participant.role == 'admin' %}var(--neon-cyan), var(--neon-blue)
+                                    {% elif participant.role == 'agent' %}var(--gradient-amber)
+                                    {% else %}var(--status-green), var(--status-blue){% endif %});">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="online-indicator {% if participant.id in online_users %}online{% else %}offline{% endif %}"></div>
+                            </div>
+                            <div class="participant-info">
+                                <div class="participant-name">{{ participant.username }}</div>
+                                <div class="participant-role">{{ participant.role|title }}</div>
+                                <div class="participant-status">
+                                    {% if participant.id in online_users %}
+                                    <span style="color: var(--status-green);">● Online</span>
+                                    {% else %}
+                                    <span style="color: rgba(255, 255, 255, 0.5);">● Offline</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="quick-actions">
+                        <button onclick="toggleVoiceChat()" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-microphone"></i> Voice Chat
+                        </button>
+                        <button onclick="shareScreen()" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-share-alt"></i> Share Screen
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Messages Area -->
+                <div class="messages-area">
+                    <div class="messages-header">
+                        <div class="chat-info">
+                            <h3><i class="fas fa-comments"></i> Order Discussion</h3>
+                            <span class="message-count">{{ messages|length }} messages</span>
+                        </div>
+                        <div class="chat-actions">
+                            <button onclick="clearChat()" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-trash"></i> Clear
+                            </button>
+                            <button onclick="exportChat()" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="messages-container" id="messagesContainer">
+                        {% for message in messages %}
+                        <div class="message-item {% if message.user_id == user.id %}own-message{% else %}other-message{% endif %} fade-in">
+                            <div class="message-avatar">
+                                <div class="avatar-glow" style="background: linear-gradient(45deg, 
+                                    {% if message.user.role == 'admin' %}var(--neon-cyan), var(--neon-blue)
+                                    {% elif message.user.role == 'agent' %}var(--gradient-amber)
+                                    {% else %}var(--status-green), var(--status-blue){% endif %});">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            </div>
+                            <div class="message-content">
+                                <div class="message-header">
+                                    <span class="message-author">{{ message.user.username }}</span>
+                                    <span class="message-role">{{ message.user.role|title }}</span>
+                                    <span class="message-time">{{ message.timestamp.strftime('%H:%M') }}</span>
+                                </div>
+                                <div class="message-text">{{ message.content }}</div>
+                                {% if message.attachments %}
+                                <div class="message-attachments">
+                                    {% for attachment in message.attachments %}
+                                    <div class="attachment-item">
+                                        <i class="fas fa-paperclip"></i>
+                                        <span>{{ attachment.filename }}</span>
+                                        <button onclick="downloadAttachment('{{ attachment.id }}')" class="btn btn-sm">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Message Input -->
+                    <div class="message-input-container">
+                        <div class="input-wrapper">
+                            <div class="attachment-options">
+                                <button onclick="attachFile()" class="btn btn-secondary btn-sm" title="Attach File">
+                                    <i class="fas fa-paperclip"></i>
+                                </button>
+                                <button onclick="attachImage()" class="btn btn-secondary btn-sm" title="Attach Image">
+                                    <i class="fas fa-image"></i>
+                                </button>
+                                <button onclick="recordVoice()" class="btn btn-secondary btn-sm" title="Voice Message">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                            </div>
+                            <div class="message-input-wrapper">
+                                <textarea 
+                                    id="messageInput" 
+                                    class="message-input" 
+                                    placeholder="Type your message... (Press Ctrl+Enter to send)"
+                                    rows="1"
+                                    onkeydown="handleMessageKeydown(event)"
+                                ></textarea>
+                                <button onclick="sendMessage()" class="btn btn-primary send-btn">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Details Sidebar -->
+            <div class="order-details-panel">
+                <div class="panel-header">
+                    <h3><i class="fas fa-info-circle"></i> Order Details</h3>
+                </div>
+                <div class="details-content">
+                    <div class="detail-section">
+                        <h4>Order Information</h4>
+                        <div class="detail-item">
+                            <span class="label">Order ID:</span>
+                            <span class="value">{{ order.order_id }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Customer:</span>
+                            <span class="value">{{ order.customer_name }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Yarn Type:</span>
+                            <span class="value">{{ order.yarn_type }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Quantity:</span>
+                            <span class="value">{{ order.quantity_kg }} kg</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Order Type:</span>
+                            <span class="value">{{ order.order_type }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Startup Date:</span>
+                            <span class="value">{{ order.startup_date.strftime('%Y-%m-%d') if order.startup_date else 'Not set' }}</span>
+                        </div>
+                        {% if user.role != 'agent' %}
+                        <div class="detail-item">
+                            <span class="label">Amount:</span>
+                            <span class="value">${{ "%.2f"|format(order.amount_usd) }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="detail-section">
+                        <h4>Timeline</h4>
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-content">
+                                    <div class="timeline-title">Order Created</div>
+                                    <div class="timeline-date">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                                </div>
+                            </div>
+                            {% if order.status != 'New Order' %}
+                            <div class="timeline-item">
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-content">
+                                    <div class="timeline-title">Status Updated</div>
+                                    <div class="timeline-date">{{ order.updated_at.strftime('%Y-%m-%d %H:%M') if order.updated_at else 'Recently' }}</div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if user.role != 'agent' %}
+                    <div class="detail-section">
+                        <h4>Quick Actions</h4>
+                        <div class="quick-actions">
+                            <a href="{{ url_for('edit_order', order_id=order.id) }}" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-edit"></i> Edit Order
+                            </a>
+                            <button onclick="updateStatus()" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-sync"></i> Update Status
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Voice Chat Modal -->
+    <div id="voiceChatModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeVoiceChat()">&times;</span>
+            <h2>Voice Chat</h2>
+            <div class="voice-chat-container">
+                <div class="voice-participants">
+                    <div class="voice-participant">
+                        <div class="voice-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="voice-info">
+                            <span class="voice-name">{{ user.username }}</span>
+                            <span class="voice-status">You</span>
+                        </div>
+                        <div class="voice-controls">
+                            <button class="btn btn-secondary btn-sm">
+                                <i class="fas fa-microphone-slash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="voice-controls-main">
+                    <button class="btn btn-primary">
+                        <i class="fas fa-microphone"></i> Mute
+                    </button>
+                    <button class="btn btn-secondary">
+                        <i class="fas fa-phone-slash"></i> End Call
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Upload Modal -->
+    <div id="fileUploadModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeFileUpload()">&times;</span>
+            <h2>Attach File</h2>
+            <form id="fileUploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <input type="file" id="fileInput" name="file" multiple>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="closeFileUpload()" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/futuristic-interactions.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat-system.js') }}"></script>
+</body>
+</html>

@@ -652,16 +652,18 @@ function moveCardToStatus(orderId, newStatus) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            order_id: orderId,
+            order_id: parseInt(orderId),
             status: newStatus
         })
     })
     .then(response => response.json())
     .then(data => {
         if (!data.success) {
-            showNotification(data.message, 'error');
+            showNotification(data.message || 'Failed to move order', 'error');
             // Revert the move
-            location.reload();
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
         } else {
             showNotification('Order moved successfully!', 'success');
         }
@@ -669,6 +671,10 @@ function moveCardToStatus(orderId, newStatus) {
     .catch(error => {
         showNotification('Error moving order', 'error');
         console.error('Error:', error);
+        // Revert the move on error
+        setTimeout(() => {
+            location.reload();
+        }, 2000);
     });
 }
 

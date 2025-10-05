@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Editor - {{ order.order_id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/futuristic-style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="main-container">
+        <!-- Floating Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-item" onclick="navigateTo('dashboard')">
+                <i class="fas fa-th-large sidebar-icon"></i>
+                <span class="sidebar-text">Dashboard</span>
+            </div>
+            <div class="sidebar-item" onclick="navigateTo('suppliers')">
+                <i class="fas fa-truck sidebar-icon"></i>
+                <span class="sidebar-text">Suppliers</span>
+            </div>
+            <div class="sidebar-item" onclick="navigateTo('messages')">
+                <i class="fas fa-comments sidebar-icon"></i>
+                <span class="sidebar-text">Messages</span>
+            </div>
+            <div class="sidebar-item" onclick="navigateTo('analytics')">
+                <i class="fas fa-chart-line sidebar-icon"></i>
+                <span class="sidebar-text">Analytics</span>
+            </div>
+            {% if user.role == 'admin' %}
+            <div class="sidebar-item" onclick="navigateTo('admin')">
+                <i class="fas fa-cog sidebar-icon"></i>
+                <span class="sidebar-text">Admin Panel</span>
+            </div>
+            {% endif %}
+            <div class="sidebar-item" onclick="logout()">
+                <i class="fas fa-sign-out-alt sidebar-icon"></i>
+                <span class="sidebar-text">Logout</span>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div>
+                    <h1 class="header-title">Order Editor</h1>
+                    <div class="order-info">
+                        <span class="order-id">Order #{{ order.order_id }}</span>
+                        <span class="order-status status-{{ order.status.lower().replace(' ', '-') }}">
+                            {{ order.status }}
+                        </span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <button onclick="previewOrder()" class="btn btn-secondary">
+                        <i class="fas fa-eye"></i> Preview
+                    </button>
+                </div>
+            </header>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash-message flash-{{ category }} fade-in">
+                                {{ message }}
+                                <button class="close-btn" onclick="this.parentElement.remove()">&times;</button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Order Editor Form -->
+            <form method="POST" action="{{ url_for('update_order') }}" class="order-editor-form" id="orderForm">
+                <input type="hidden" name="order_id" value="{{ order.id }}">
+                
+                <!-- Order Overview Card -->
+                <div class="order-overview-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-info-circle"></i> Order Overview</h3>
+                        <div class="order-preview">
+                            <div class="yarn-preview-large" style="background: linear-gradient(45deg, 
+                                {% if 'cotton' in order.yarn_type.lower() %}#ff6b6b, #4ecdc4
+                                {% elif 'wool' in order.yarn_type.lower() %}#a8e6cf, #ffd93d
+                                {% elif 'silk' in order.yarn_type.lower() %}#ff9a9e, #fecfef
+                                {% else %}#667eea, #764ba2{% endif %});">
+                                <div class="yarn-texture"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overview-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Created</span>
+                            <span class="stat-value">{{ order.created_at.strftime('%Y-%m-%d') }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Last Updated</span>
+                            <span class="stat-value">{{ order.updated_at.strftime('%Y-%m-%d') if order.updated_at else 'Never' }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Status</span>
+                            <span class="stat-value status-{{ order.status.lower().replace(' ', '-') }}">{{ order.status }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Sections -->
+                <div class="form-sections">
+                    <!-- Basic Information -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h3><i class="fas fa-clipboard-list"></i> Basic Information</h3>
+                            <div class="section-status">
+                                <span class="status-indicator" id="basicStatus">●</span>
+                                <span>Required Fields</span>
+                            </div>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="orderId">Order ID</label>
+                                <input type="text" id="orderId" value="{{ order.order_id }}" disabled class="form-control">
+                                <small class="form-text">Order ID cannot be changed</small>
+                            </div>
+                            
+                            {% if user.role != 'agent' %}
+                            <div class="form-group">
+                                <label for="customerName">Customer Name *</label>
+                                <input type="text" id="customerName" name="customer_name" value="{{ order.customer_name }}" required class="form-control">
+                                <div class="field-validation"></div>
+                            </div>
+                            {% else %}
+                            <div class="form-group">
+                                <label for="customerName">Customer Name</label>
+                                <input type="text" id="customerName" value="[Hidden for Agents]" readonly class="form-control">
+                                <small class="form-text">Customer information is restricted for agents</small>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="form-group">
+                                <label for="yarnType">Yarn Type *</label>
+                                <input type="text" id="yarnType" name="yarn_type" value="{{ order.yarn_type }}" required class="form-control" list="yarnTypes">
+                                <datalist id="yarnTypes">
+                                    <option value="Cotton">
+                                    <option value="Wool">
+                                    <option value="Silk">
+                                    <option value="Polyester">
+                                    <option value="Acrylic">
+                                    <option value="Blend">
+                                </datalist>
+                                <div class="field-validation"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="quantityKg">Quantity (kg) *</label>
+                                <input type="number" id="quantityKg" name="quantity_kg" value="{{ order.quantity_kg }}" step="0.01" required class="form-control">
+                                <div class="field-validation"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Details -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h3><i class="fas fa-cogs"></i> Order Details</h3>
+                            <div class="section-status">
+                                <span class="status-indicator" id="detailsStatus">●</span>
+                                <span>Configuration</span>
+                            </div>
+                        </div>
+                        <div class="form-grid">
+                            {% if user.role != 'agent' %}
+                            <div class="form-group">
+                                <label for="orderType">Order Type *</label>
+                                <select id="orderType" name="order_type" required class="form-control">
+                                    <option value="Local" {% if order.order_type == 'Local' %}selected{% endif %}>Local</option>
+                                    <option value="Export" {% if order.order_type == 'Export' %}selected{% endif %}>Export</option>
+                                </select>
+                                <div class="field-validation"></div>
+                            </div>
+                            {% else %}
+                            <div class="form-group">
+                                <label for="orderType">Order Type</label>
+                                <input type="text" value="{{ order.order_type }}" readonly class="form-control">
+                                <small class="form-text">Order type is set by administrators</small>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="form-group">
+                                <label for="startupDate">Startup Date *</label>
+                                <input type="date" id="startupDate" name="startup_date" value="{{ order.startup_date.strftime('%Y-%m-%d') if order.startup_date else '' }}" required class="form-control">
+                                <div class="field-validation"></div>
+                            </div>
+                            
+                            {% if user.role != 'agent' %}
+                            <div class="form-group">
+                                <label for="amountUsd">Amount (USD) *</label>
+                                <input type="number" id="amountUsd" name="amount_usd" value="{{ order.amount_usd }}" step="0.01" required class="form-control">
+                                <div class="field-validation"></div>
+                            </div>
+                            {% else %}
+                            <div class="form-group">
+                                <label for="amountUsd">Amount (USD)</label>
+                                <input type="text" value="[Hidden for Agents]" readonly class="form-control">
+                                <small class="form-text">Amount information is restricted for agents</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Status & Assignment -->
+                    {% if user.role == 'admin' %}
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h3><i class="fas fa-user-cog"></i> Status & Assignment</h3>
+                            <div class="section-status">
+                                <span class="status-indicator" id="statusStatus">●</span>
+                                <span>Administrative</span>
+                            </div>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="status">Order Status *</label>
+                                <select id="status" name="status" required class="form-control">
+                                    {% for status_key, status_value in ORDER_STATUSES.items() %}
+                                    <option value="{{ status_key }}" {% if order.status == status_key %}selected{% endif %}>
+                                        {{ status_value }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="field-validation"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Assigned Agents</label>
+                                <div class="agents-list">
+                                    {% for agent in agents %}
+                                    <label class="agent-checkbox">
+                                        <input type="checkbox" name="agent_ids" value="{{ agent.id }}" 
+                                               {% if agent in order.agents %}checked{% endif %}>
+                                        <div class="agent-card">
+                                            <div class="agent-avatar">
+                                                <div class="avatar-glow" style="background: var(--gradient-amber);">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                            </div>
+                                            <div class="agent-info">
+                                                <span class="agent-name">{{ agent.username }}</span>
+                                                <span class="agent-role">{{ agent.role|title }}</span>
+                                            </div>
+                                        </div>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Notes & Comments -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h3><i class="fas fa-sticky-note"></i> Notes & Comments</h3>
+                            <div class="section-status">
+                                <span class="status-indicator" id="notesStatus">●</span>
+                                <span>Optional</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="notes">Order Notes</label>
+                            <textarea id="notes" name="notes" rows="4" class="form-control" placeholder="Add any additional notes or comments about this order...">{{ order.notes or '' }}</textarea>
+                            <div class="character-count">
+                                <span id="notesCount">0</span> / 1000 characters
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <div class="action-buttons">
+                        <button type="button" onclick="resetForm()" class="btn btn-secondary">
+                            <i class="fas fa-undo"></i> Reset Changes
+                        </button>
+                        <button type="button" onclick="saveDraft()" class="btn btn-secondary">
+                            <i class="fas fa-save"></i> Save Draft
+                        </button>
+                        <button type="submit" class="btn btn-primary glow-animation">
+                            <i class="fas fa-check"></i> Update Order
+                        </button>
+                    </div>
+                    <div class="form-validation">
+                        <div class="validation-summary" id="validationSummary"></div>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Quick Actions -->
+            <div style="position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 1000;">
+                <div class="quick-actions-floating">
+                    <button onclick="duplicateOrder()" class="btn btn-secondary">
+                        <i class="fas fa-copy"></i> Duplicate
+                    </button>
+                    <button onclick="viewHistory()" class="btn btn-secondary">
+                        <i class="fas fa-history"></i> History
+                    </button>
+                    <button onclick="openChat()" class="btn btn-secondary">
+                        <i class="fas fa-comments"></i> Chat
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Floating Assistant Orb -->
+    <div class="assistant-orb" onclick="openAssistant()" title="AI Assistant"></div>
+
+    <!-- Preview Modal -->
+    <div id="previewModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <span class="close" onclick="closePreview()">&times;</span>
+            <h2>Order Preview</h2>
+            <div id="previewContent"></div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeHistory()">&times;</span>
+            <h2>Order History</h2>
+            <div class="history-timeline" id="historyTimeline">
+                <!-- History items will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/futuristic-interactions.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/order-editor.js') }}"></script>
+</body>
+</html>
