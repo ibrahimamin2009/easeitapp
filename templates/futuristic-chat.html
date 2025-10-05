@@ -148,16 +148,16 @@
                         <div class="message-item {% if message.user_id == user.id %}own-message{% else %}other-message{% endif %} fade-in">
                             <div class="message-avatar">
                                 <div class="avatar-glow" style="background: linear-gradient(45deg, 
-                                    {% if message.user.role == 'admin' %}var(--neon-cyan), var(--neon-blue)
-                                    {% elif message.user.role == 'agent' %}var(--gradient-amber)
+                                    {% if message.sender.role == 'admin' %}var(--neon-cyan), var(--neon-blue)
+                                    {% elif message.sender.role == 'agent' %}var(--gradient-amber)
                                     {% else %}var(--status-green), var(--status-blue){% endif %});">
                                     <i class="fas fa-user"></i>
                                 </div>
                             </div>
                             <div class="message-content">
                                 <div class="message-header">
-                                    <span class="message-author">{{ message.user.username }}</span>
-                                    <span class="message-role">{{ message.user.role|title }}</span>
+                                    <span class="message-author">{{ message.sender.username }}</span>
+                                    <span class="message-role">{{ message.sender.role|title }}</span>
                                     <span class="message-time">{{ message.timestamp.strftime('%H:%M') }}</span>
                                 </div>
                                 <div class="message-text">{{ message.content }}</div>
