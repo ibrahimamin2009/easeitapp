@@ -404,8 +404,18 @@ def move_order():
         return redirect(url_for('login'))
     
     user = User.query.get(session['user_id'])
-    order_id = request.json['order_id']
-    new_status = request.json['status']
+    
+    # Safely get JSON data with error handling
+    try:
+        data = request.json or {}
+        order_id = data.get('order_id')
+        new_status = data.get('status')
+        
+        if not order_id or not new_status:
+            return jsonify({'success': False, 'message': 'Missing order_id or status'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': 'Invalid request data'})
     
     order = Order.query.get(order_id)
     if not order:
@@ -609,6 +619,27 @@ def chat(order_id):
         available_agents = [oa.agent for oa in assigned_agents]
         if order.assigned_agent and order.agent not in available_agents:
             available_agents.append(order.agent)
+    
+    # Get participants (all users who can participate in this chat)
+    participants = []
+    if user.role == 'admin':
+        # Admin can see all assigned agents and the order owner
+        participants = available_agents.copy()
+        if order.assigned_agent and order.agent not in participants:
+            participants.append(order.agent)
+    else:
+        # Non-admin users see themselves and other participants
+        participants = [user]
+        if order.assigned_agent:
+            participants.append(order.agent)
+        participants.extend(available_agents)
+    
+    # Remove duplicates while preserving order
+    seen = set()
+    participants = [p for p in participants if not (p.id in seen or seen.add(p.id))]
+    
+    # Simulate online users (in a real app, this would come from a session store)
+    online_users = [p.id for p in participants if p.is_active]  # Assume active users are online
     
     return render_template('futuristic-chat.html', order=order, messages=messages, user=user, available_agents=available_agents, participants=participants, online_users=online_users)
 
