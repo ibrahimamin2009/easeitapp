@@ -179,7 +179,33 @@
                                 <button onclick="recordVoice()" class="btn btn-secondary btn-sm" title="Voice Message">
                                     <i class="fas fa-microphone"></i>
                                 </button>
+                                {% if user.role == 'admin' and available_agents %}
+                                <button onclick="toggleAgentTagging()" class="btn btn-secondary btn-sm" title="Tag Agents">
+                                    <i class="fas fa-users"></i>
+                                </button>
+                                {% endif %}
                             </div>
+                            
+                            {% if user.role == 'admin' and available_agents %}
+                            <div id="agentTaggingPanel" class="agent-tagging-panel" style="display: none;">
+                                <div class="tagging-header">
+                                    <h4><i class="fas fa-tag"></i> Tag Agents</h4>
+                                    <button onclick="closeAgentTagging()" class="btn btn-sm btn-secondary">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="agent-checkboxes">
+                                    {% for agent in available_agents %}
+                                    <label class="agent-checkbox">
+                                        <input type="checkbox" name="tagged_agents" value="{{ agent.id }}">
+                                        <span class="checkbox-custom"></span>
+                                        <span class="agent-name">{{ agent.username }}</span>
+                                        <span class="agent-role">{{ agent.role|title }}</span>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
                             <div class="message-input-wrapper">
                                 <textarea 
                                     id="messageInput" 

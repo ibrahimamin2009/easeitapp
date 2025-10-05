@@ -65,12 +65,23 @@ function sendMessage() {
     const content = messageInput.value.trim();
     if (!content) return;
     
+    // Get tagged agents
+    const taggedAgents = [];
+    const checkboxes = document.querySelectorAll('input[name="tagged_agents"]:checked');
+    checkboxes.forEach(checkbox => {
+        taggedAgents.push(parseInt(checkbox.value));
+    });
+    
     // Clear input
     messageInput.value = '';
     messageInput.style.height = 'auto';
     
+    // Clear agent checkboxes
+    checkboxes.forEach(checkbox => checkbox.checked = false);
+    closeAgentTagging();
+    
     // Add message to UI immediately
-    addMessageToUI(content, true);
+    addMessageToUI(content, true, taggedAgents);
     
     // Send to server
     fetch('/send_message', {
@@ -80,22 +91,35 @@ function sendMessage() {
         },
         body: JSON.stringify({
             order_id: getOrderIdFromURL(),
-            content: content
+            message: content,
+            tagged_agents: taggedAgents
         })
     })
     .then(response => response.json())
     .then(data => {
         if (!data.success) {
-            showNotification('Failed to send message', 'error');
+            showNotification(data.message || 'Failed to send message', 'error');
+            // Remove the message from UI if it failed
+            const messages = document.querySelectorAll('.message-item');
+            if (messages.length > 0) {
+                messages[messages.length - 1].remove();
+            }
+        } else {
+            showNotification('Message sent successfully!', 'success');
         }
     })
     .catch(error => {
         console.error('Error sending message:', error);
         showNotification('Error sending message', 'error');
+        // Remove the message from UI if it failed
+        const messages = document.querySelectorAll('.message-item');
+        if (messages.length > 0) {
+            messages[messages.length - 1].remove();
+        }
     });
 }
 
-function addMessageToUI(content, isOwnMessage = false) {
+function addMessageToUI(content, isOwnMessage = false, taggedAgents = []) {
     const messageElement = document.createElement('div');
     messageElement.className = `message-item ${isOwnMessage ? 'own-message' : 'other-message'} fade-in`;
     
@@ -103,6 +127,16 @@ function addMessageToUI(content, isOwnMessage = false) {
         hour: '2-digit', 
         minute: '2-digit' 
     });
+    
+    let taggedAgentsHTML = '';
+    if (taggedAgents && taggedAgents.length > 0) {
+        taggedAgentsHTML = `
+            <div class="message-tags">
+                <i class="fas fa-tag"></i>
+                <span>Tagged ${taggedAgents.length} agent${taggedAgents.length > 1 ? 's' : ''}</span>
+            </div>
+        `;
+    }
     
     messageElement.innerHTML = `
         <div class="message-avatar">
@@ -117,6 +151,7 @@ function addMessageToUI(content, isOwnMessage = false) {
                 <span class="message-time">${timestamp}</span>
             </div>
             <div class="message-text">${content}</div>
+            ${taggedAgentsHTML}
         </div>
     `;
     
@@ -535,6 +570,24 @@ function shareScreen() {
 function updateStatus() {
     // In real implementation, this would open a status update modal
     showNotification('Status update feature coming soon!', 'info');
+}
+
+// Agent tagging functions
+function toggleAgentTagging() {
+    const panel = document.getElementById('agentTaggingPanel');
+    if (panel) {
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        if (panel.style.display === 'block') {
+            panel.style.animation = 'slideDown 0.3s ease-out';
+        }
+    }
+}
+
+function closeAgentTagging() {
+    const panel = document.getElementById('agentTaggingPanel');
+    if (panel) {
+        panel.style.display = 'none';
+    }
 }
 
 // Utility functions

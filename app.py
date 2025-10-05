@@ -714,6 +714,49 @@ def send_message():
     return jsonify({'success': True})
 
 
+@app.route('/upload_file', methods=['POST'])
+def upload_file():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(session['user_id'])
+    order_id = request.form.get('order_id')
+    
+    if not order_id:
+        return jsonify({'success': False, 'message': 'Order ID required'})
+    
+    order = Order.query.get(order_id)
+    if not order:
+        return jsonify({'success': False, 'message': 'Order not found'})
+    
+    # Check permissions
+    if user.role == 'agent':
+        is_assigned = (order.assigned_agent == user.id or 
+                      OrderAgent.query.filter_by(order_id=order_id, agent_id=user.id).first())
+        if not is_assigned:
+            return jsonify({'success': False, 'message': 'Permission denied'})
+    elif user.role == 'user':
+        if order.created_by != user.id:
+            return jsonify({'success': False, 'message': 'Permission denied'})
+    
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'No file provided'})
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'No file selected'})
+    
+    # For now, just simulate file upload success
+    # In a real implementation, you would save the file and create a database record
+    import uuid
+    file_id = str(uuid.uuid4())
+    
+    # Log audit
+    log_audit(user.id, 'file_uploaded', 'chat', order_id, f"Uploaded file {file.filename} to order {order.order_id}")
+    
+    return jsonify({'success': True, 'file_id': file_id, 'filename': file.filename})
+
+
 @app.route('/edit_order/<int:order_id>')
 def edit_order(order_id):
     if 'user_id' not in session:
