@@ -170,22 +170,22 @@
                 <div class="dashboard-grid">
                     <div class="dashboard-card">
                         <h3>Total Orders</h3>
-                        <div class="stat-number">{{ orders_by_status.values()|map('length')|sum }}</div>
+                        <div class="stat-number">{{ total_orders }}</div>
                         <div class="stat-label">This Month</div>
                     </div>
                     <div class="dashboard-card">
                         <h3>Active Orders</h3>
-                        <div class="stat-number">{{ (orders_by_status.values()|map('length')|sum) - orders_by_status.get('Archived', [])|length }}</div>
+                        <div class="stat-number">{{ active_orders }}</div>
                         <div class="stat-label">In Progress</div>
                     </div>
                     <div class="dashboard-card">
                         <h3>Total Value</h3>
-                        <div class="stat-number">${{ orders_by_status.values()|flatten|map(attribute='amount_usd')|sum|round|int }}</div>
+                        <div class="stat-number">${{ "%.0f"|format(total_value) }}</div>
                         <div class="stat-label">USD</div>
                     </div>
                     <div class="dashboard-card">
                         <h3>Completion Rate</h3>
-                        <div class="stat-number">{{ ((orders_by_status.get('Archived', [])|length / orders_by_status.values()|map('length')|sum * 100) if orders_by_status.values()|map('length')|sum > 0 else 0)|round }}%</div>
+                        <div class="stat-number">{{ "%.0f"|format(completion_rate) }}%</div>
                         <div class="stat-label">Orders Completed</div>
                     </div>
                 </div>
@@ -194,10 +194,6 @@
                 <div class="dashboard-card" style="grid-column: 1 / -1;">
                     <h3>Yarn Type Distribution</h3>
                     <div style="display: flex; gap: 2rem; flex-wrap: wrap; margin-top: 1rem;">
-                        {% set yarn_types = {} %}
-                        {% for order in orders_by_status.values()|flatten %}
-                            {% set _ = yarn_types.update({order.yarn_type: yarn_types.get(order.yarn_type, 0) + 1}) %}
-                        {% endfor %}
                         {% for yarn_type, count in yarn_types.items() %}
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <div class="yarn-preview" style="width: 30px; height: 30px; margin: 0;"></div>

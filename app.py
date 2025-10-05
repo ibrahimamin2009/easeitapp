@@ -307,6 +307,18 @@ def dashboard():
     if user.role == 'agent':
         agent_assigned_order_ids = [oa.order_id for oa in user.order_assignments]
     
+    # Calculate dashboard statistics
+    all_orders = [order for order_list in orders_by_status.values() for order in order_list]
+    total_orders = len(all_orders)
+    active_orders = total_orders - len(orders_by_status.get('Archived', []))
+    total_value = sum(order.amount_usd for order in all_orders)
+    completion_rate = (len(orders_by_status.get('Archived', [])) / total_orders * 100) if total_orders > 0 else 0
+    
+    # Calculate yarn type distribution
+    yarn_types = {}
+    for order in all_orders:
+        yarn_types[order.yarn_type] = yarn_types.get(order.yarn_type, 0) + 1
+    
     return render_template('futuristic-dashboard.html', 
                          orders_by_status=orders_by_status, 
                          user=user, 
@@ -316,7 +328,12 @@ def dashboard():
                          status_filter=status_filter,
                          agent_filter=agent_filter,
                          order_type_filter=order_type_filter,
-                         ORDER_STATUSES=ORDER_STATUSES)
+                         ORDER_STATUSES=ORDER_STATUSES,
+                         total_orders=total_orders,
+                         active_orders=active_orders,
+                         total_value=total_value,
+                         completion_rate=completion_rate,
+                         yarn_types=yarn_types)
 
 @app.route('/create_order', methods=['POST'])
 def create_order():
