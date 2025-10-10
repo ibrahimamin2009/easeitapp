@@ -39,11 +39,8 @@ function initializeMessageInput() {
 }
 
 function initializeRealTimeUpdates() {
-    // Simulate real-time message updates
-    setInterval(checkForNewMessages, 2000);
-    
-    // Simulate typing indicators
-    setInterval(updateTypingIndicators, 1000);
+    // Real-time updates can be implemented with WebSockets later
+    // For now, we'll keep it clean without random messages
 }
 
 function initializeVoiceFeatures() {
@@ -104,8 +101,6 @@ function sendMessage() {
             if (messages.length > 0) {
                 messages[messages.length - 1].remove();
             }
-        } else {
-            showNotification('Message sent successfully!', 'success');
         }
     })
     .catch(error => {
@@ -147,7 +142,7 @@ function addMessageToUI(content, isOwnMessage = false, taggedAgents = []) {
         <div class="message-content">
             <div class="message-header">
                 <span class="message-author">${isOwnMessage ? 'You' : 'Other User'}</span>
-                <span class="message-role">${isOwnMessage ? 'User' : 'Agent'}</span>
+                <span class="message-role">${isOwnMessage ? 'You' : 'Other'}</span>
                 <span class="message-time">${timestamp}</span>
             </div>
             <div class="message-text">${content}</div>
@@ -169,68 +164,25 @@ function scrollToBottom() {
 }
 
 function setupTypingIndicator() {
-    const typingIndicator = document.createElement('div');
-    typingIndicator.className = 'typing-indicator';
-    typingIndicator.style.display = 'none';
-    typingIndicator.innerHTML = `
-        <div class="typing-avatar">
-            <div class="avatar-glow" style="background: var(--gradient-amber);">
-                <i class="fas fa-user"></i>
-            </div>
-        </div>
-        <div class="typing-content">
-            <div class="typing-dots">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-            <span class="typing-text">Someone is typing...</span>
-        </div>
-    `;
-    
-    messagesContainer.appendChild(typingIndicator);
+    // Typing indicators removed for cleaner interface
+    // Can be re-implemented with real WebSocket functionality later
 }
 
 function showTypingIndicator() {
-    const indicator = document.querySelector('.typing-indicator');
-    if (indicator) {
-        indicator.style.display = 'flex';
-        scrollToBottom();
-    }
+    // Disabled for cleaner interface
 }
 
 function hideTypingIndicator() {
-    const indicator = document.querySelector('.typing-indicator');
-    if (indicator) {
-        indicator.style.display = 'none';
-    }
+    // Disabled for cleaner interface
 }
 
 function updateTypingIndicators() {
-    // Simulate random typing indicators
-    if (Math.random() < 0.1) { // 10% chance
-        showTypingIndicator();
-        setTimeout(() => {
-            hideTypingIndicator();
-        }, 2000);
-    }
+    // Disabled for cleaner interface
 }
 
 function checkForNewMessages() {
-    // In real implementation, this would poll the server or use WebSocket
-    // For now, we'll simulate occasional new messages
-    if (Math.random() < 0.05) { // 5% chance
-        const sampleMessages = [
-            "Thanks for the update!",
-            "I'll check on that for you.",
-            "The order is progressing well.",
-            "Any questions about the timeline?",
-            "I'll send you the details shortly."
-        ];
-        
-        const randomMessage = sampleMessages[Math.floor(Math.random() * sampleMessages.length)];
-        addMessageToUI(randomMessage, false);
-    }
+    // Real-time message checking can be implemented with WebSockets later
+    // Removed random message simulation for cleaner interface
 }
 
 // Voice chat functionality
@@ -786,17 +738,20 @@ chatStyle.textContent = `
     
     .message-content {
         max-width: 70%;
-        background: var(--card-bg);
+        background: var(--glass-bg);
         backdrop-filter: blur(20px);
         border: 1px solid var(--glass-border);
         border-radius: var(--radius-md);
         padding: var(--spacing-md);
         position: relative;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
     
     .own-message .message-content {
-        background: var(--neon-cyan);
+        background: linear-gradient(135deg, var(--neon-cyan), var(--neon-blue));
         color: var(--primary-bg);
+        border-color: var(--neon-cyan);
+        box-shadow: 0 2px 15px rgba(0, 255, 255, 0.2);
     }
     
     .message-header {
@@ -883,48 +838,7 @@ chatStyle.textContent = `
         justify-content: center;
     }
     
-    .typing-indicator {
-        display: flex;
-        gap: var(--spacing-md);
-        align-items: center;
-        padding: var(--spacing-md);
-        background: var(--glass-bg);
-        border-radius: var(--radius-md);
-        border: 1px solid var(--glass-border);
-        margin-bottom: var(--spacing-md);
-    }
-    
-    .typing-dots {
-        display: flex;
-        gap: 4px;
-    }
-    
-    .typing-dots span {
-        width: 6px;
-        height: 6px;
-        background: var(--neon-cyan);
-        border-radius: 50%;
-        animation: typingDot 1.4s infinite ease-in-out;
-    }
-    
-    .typing-dots span:nth-child(2) {
-        animation-delay: 0.2s;
-    }
-    
-    .typing-dots span:nth-child(3) {
-        animation-delay: 0.4s;
-    }
-    
-    @keyframes typingDot {
-        0%, 80%, 100% {
-            transform: scale(0.8);
-            opacity: 0.5;
-        }
-        40% {
-            transform: scale(1);
-            opacity: 1;
-        }
-    }
+    /* Typing indicators removed for cleaner interface */
     
     .attachment-item {
         display: flex;
